@@ -1,0 +1,25 @@
+{
+	"name": "slim/admin",
+	"type": "library",
+	"description": "Manage mysql data by Slim Framework",
+	"keywords": ["mysql", "microframework","rest","router"],
+	"homepage": "http://github.com/arronzhang/Slim-Admin",
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "Arron Zhang",
+			"email": "arronzhang@me.com",
+		}
+	],
+	"require": {
+		"php": ">=5.3.0"
+	  , "jasny/db-mysql": "*"
+	  , "slim/slim": "*"
+	  , "slim/extras": "*"
+	  , "twig/twig": "*"
+	  , "codeguy/upload": "*"
+	},
+	"autoload": {
+		"psr-0": { "Slim\\Admin": "Admin/" }
+	}
+}
