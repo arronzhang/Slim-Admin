@@ -36,7 +36,8 @@ class Base
 	 */
 	public function __construct( $userSettings = array() )
 	{
-		$this->settings = array_merge( array(), $userSettings );
+		$this->settings = array();
+		$this->config( $userSettings );
 	}
 
 	/**
