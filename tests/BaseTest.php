@@ -15,6 +15,13 @@ class BaseTest extends PHPUnit_Framework_TestCase
 
 		$base->config( "a", "d" );
 		$this->assertEquals( "d", $base->config("a") );
+
+		$base->config( "name", "user" );
+		$this->assertEquals( "user", $base->config("name") );
+		$this->assertEquals( "user", $base->name );
+
+		$base->name = "acc";
+		$this->assertEquals( "acc", $base->config("name") );
 	}
 }
 

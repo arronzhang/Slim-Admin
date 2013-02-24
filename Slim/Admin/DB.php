@@ -44,9 +44,10 @@ class DB extends Base
 	 * Constructor
 	 * @param mix $conn The db connection
 	 */
-	//public function __construct( $conn = null )
-	//{
-	//}
+	public function __construct( $conn = null, $settings = array() )
+	{
+		parent::__construct( $settings );
+	}
 
 	/**
 	 * Configure table

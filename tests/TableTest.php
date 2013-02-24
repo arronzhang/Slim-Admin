@@ -7,7 +7,7 @@ class TableTest extends PHPUnit_Framework_TestCase
 	 */
 	public function testConfig()
 	{
-		$base = new \Slim\Admin\Table( array( "a" => "b" ) );
+		$base = new \Slim\Admin\Table( "users", array( "a" => "b" ) );
 		$this->assertEquals( "b", $base->config("a") );
 
 		$base->config( array( "a" => "c" ) );
@@ -23,7 +23,7 @@ class TableTest extends PHPUnit_Framework_TestCase
 
 	public function testName()
 	{
-		$table = new \Slim\Admin\Table( array( "a" => "b" ) );
+		$table = new \Slim\Admin\Table("users", array( "a" => "b" ) );
 		$table->name = "user";
 		$this->assertEquals( "user", $table->name );
 	}

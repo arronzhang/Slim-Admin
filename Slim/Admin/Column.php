@@ -69,6 +69,17 @@ class Column extends Base
 	public $formatter;
 
 	/**
+	 * Constructor
+	 * @param mix $conn The db connection
+	 */
+	public function __construct( $name, $settings = array() )
+	{
+		$this->name = $name;
+		$this->label = $name;
+		parent::__construct( $settings );
+	}
+
+	/**
 	 * Format data
 	 *
 	 */

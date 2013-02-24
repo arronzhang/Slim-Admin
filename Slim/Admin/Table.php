@@ -51,6 +51,18 @@ class Table extends Base
 	protected $columns;
 
 	/**
+	 * Constructor
+	 * @param mix $conn The db connection
+	 */
+	public function __construct( $name, $settings = array() )
+	{
+		$this->name = $name;
+		$this->alias = $name;
+		parent::__construct( $settings );
+	}
+
+
+	/**
 	 * Configure column
 	 *
 	 * @param  string $name The name of the column

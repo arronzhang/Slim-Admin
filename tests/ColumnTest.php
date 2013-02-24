@@ -7,7 +7,7 @@ class ColumnTest extends PHPUnit_Framework_TestCase
 	 */
 	public function testConfig()
 	{
-		$base = new \Slim\Admin\Column( array( "a" => "b" ) );
+		$base = new \Slim\Admin\Column( "name", array( "a" => "b" ) );
 		$this->assertEquals( "b", $base->config("a") );
 
 		$base->config( array( "a" => "c" ) );
@@ -23,7 +23,7 @@ class ColumnTest extends PHPUnit_Framework_TestCase
 
 	public function testName()
 	{
-		$column = new \Slim\Admin\Column( array( "a" => "b" ) );
+		$column = new \Slim\Admin\Column( "name", array( "a" => "b" ) );
 		$column->name = "user";
 		$this->assertEquals( "user", $column->name );
 	}

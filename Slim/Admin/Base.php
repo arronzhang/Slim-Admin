@@ -26,6 +26,11 @@ namespace Slim\Admin;
 class Base
 {
 	/**
+	 * @var string
+	 */
+	public $name;
+
+	/**
 	 * @var array
 	 */
 	protected $settings;
@@ -52,12 +57,21 @@ class Base
 	{
 		if (func_num_args() === 1) {
 			if (is_array($name)) {
-				$this->settings = array_merge($this->settings, $name);
+				//$this->settings = array_merge($this->settings, $name);
+				foreach ( $name as $key => $value ) {
+					$this->settings[$key] = $value;
+					if( property_exists( $this, $key ) ) {
+						$this->$key = $value;
+					}
+				}
 			} else {
-				return isset($this->settings[$name]) ? $this->settings[$name] : null;
+				return property_exists( $this, $name ) ? $this->$name : ( isset($this->settings[$name]) ? $this->settings[$name] : null );
 			}
 		} else {
 			$this->settings[$name] = $value;
+			if( property_exists( $this, $name ) ) {
+				$this->$name = $value;
+			}
 		}
 	}
 }
