@@ -46,7 +46,7 @@ class DB extends Base
 	 */
 	public function __construct( $conn = null, $settings = array() )
 	{
-		parent::__construct( $settings );
+		parent::__construct( null, $settings );
 	}
 
 	/**

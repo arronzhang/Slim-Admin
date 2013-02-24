@@ -74,9 +74,8 @@ class Column extends Base
 	 */
 	public function __construct( $name, $settings = array() )
 	{
-		$this->name = $name;
 		$this->label = $name;
-		parent::__construct( $settings );
+		parent::__construct( $name, $settings );
 	}
 
 	/**

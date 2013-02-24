@@ -56,9 +56,8 @@ class Table extends Base
 	 */
 	public function __construct( $name, $settings = array() )
 	{
-		$this->name = $name;
 		$this->alias = $name;
-		parent::__construct( $settings );
+		parent::__construct( $name, $settings );
 	}
 
 
