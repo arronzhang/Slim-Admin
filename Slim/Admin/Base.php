@@ -160,7 +160,8 @@ class Base
 		} else {
 			$child = $this->children[ $name ];
 		}
-		$child->config( $settings );
+		if( !empty( $settings ) )
+			$child->config( $settings );
 		return $child;
 	}
 }
