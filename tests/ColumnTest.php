@@ -20,12 +20,12 @@ class ColumnTest extends PHPUnit_Framework_TestCase
 	/**
 	 * test attributes
 	 */
-
 	public function testName()
 	{
 		$column = new \Slim\Admin\Column( "name", array( "a" => "b" ) );
 		$column->name = "user";
 		$this->assertEquals( "user", $column->name );
+		$this->assertEquals( "Name", $column->label );
 	}
 }
 

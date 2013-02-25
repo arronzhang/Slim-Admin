@@ -74,7 +74,7 @@ class Column extends Base
 	 */
 	public function __construct( $name, $settings = array() )
 	{
-		$this->label = $name;
+		$this->label = ucfirst( $name );
 		parent::__construct( $name, $settings );
 	}
 

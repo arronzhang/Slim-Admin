@@ -26,6 +26,7 @@ class TableTest extends PHPUnit_Framework_TestCase
 		$table = new \Slim\Admin\Table("users", array( "a" => "b" ) );
 		$table->name = "user";
 		$this->assertEquals( "user", $table->name );
+		$this->assertEquals( "Users", $table->alias );
 	}
 }
 
