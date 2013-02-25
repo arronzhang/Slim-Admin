@@ -36,6 +36,11 @@ class DB extends Base
 	protected $conn;
 
 	/**
+	 * @var mix
+	 */
+	protected $cache;
+
+	/**
 	 * @var array
 	 */
 	protected $tables;
@@ -92,11 +97,30 @@ class DB extends Base
 
 	/**
 	 * Load tables config from database
+	 * 
+	 * @param  array $data Not fetch data from $conn If data give.
 	 *
-	 * @return array tables
+	 * @return array loaded data..
+	 *
 	 */
-	public function load()
+	public function load( $data = array() )
 	{
+		if( func_num_args() ) {
+			if( is_array( $data ) ) {
+				for ($i = 0; $i < count($data); $i++) {
+					$this->table($data[$i]);
+				}
+			}
+			return $data;
+		} else {
+			if( $this->conn ) {
+				if ( !$this->cache ) 
+					$this->chche = $this->conn->fetchColumn("SHOW TABLES", MYSQLI_NUM);
+				return $this->load( $this->cache );
+			} else {
+				//throw not conn
+			}
+		}
 	}
 }
 

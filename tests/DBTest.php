@@ -38,6 +38,20 @@ class DBTest extends PHPUnit_Framework_TestCase
 		$this->assertEquals( 2, count( $tables ) );
 	}
 
+	/**
+	 * test load
+	 */
+
+	public function testLoad()
+	{
+		//$conn = new \Jasny\MySQL\DB("127.0.0.1", "root", "public", "mysql");
+		$db = new \Slim\Admin\DB();
+		$db->load( array("user") );
+		$tables = $db->tables();
+		$this->assertEquals( 1, count($tables) );
+		$this->assertEquals( "user", $tables[0]->name );
+	}
+
 }
 
 ?>

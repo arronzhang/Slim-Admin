@@ -41,23 +41,27 @@ class Table extends Base
 	public $alias;
 
 	/**
-	 * @var mix
-	 */
-	protected $conn;
-
-	/**
 	 * @var array
 	 */
 	protected $columns;
 
 	/**
 	 * Constructor
-	 * @param mix $conn The db connection
+	 *
+	 * @param mix $name The table name
 	 */
 	public function __construct( $name, $settings = array() )
 	{
 		$this->alias = ucfirst( $name );
 		parent::__construct( $name, $settings );
+	}
+
+	/**
+	 * @return conneciton from db
+	 */
+	protected function conn(){
+		$db = $this->config("db");
+		return $db ? $db->conn() : null;
 	}
 
 	/**
@@ -110,12 +114,55 @@ class Table extends Base
 	}
 
 	/**
-	 * Load columns config from database.
+	 * Load colums config from database
+	 * 
+	 * @param  array $data Not fetch data from $conn If data give.
+	 *
+	 * @return array loaded data..
 	 *
 	 */
-
-	public function load() 
+	public function load( $data = array() )
 	{
+		if( func_num_args() ) {
+			if( is_array( $data ) ) {
+				for ($i = 0; $i < count($data); $i++) {
+					call_user_func_array( array( $this, "table" ), $data[$i] );
+				}
+			}
+			return $data;
+		} else {
+			$conn = $this->conn();
+			if( $conn ) {
+				if ( !$this->cache ) {
+					$res = $this->conn->fetchAll("DESCRIBE " . $name);
+					$res = array_map( function($col) {
+						$res = $col["Type"];
+						preg_match("/^[\w]+/", $res, $type);
+						preg_match("/\(([^)]+)/", $res, $extra);
+						if( !empty( $extra ) ) {
+							$extra = $extra[1];
+							$tag = substr( $extra, 0, 1 );
+							if( $tag == "'" || $tag == "\"" ) {
+								$extra = preg_split("/".$tag."\s*[,]\s*".$tag."/", preg_replace("/^".$tag."|".$tag."$/i", "", $extra) );
+							} else {
+								$extra = preg_split("/\s*[,]\s*/", $extra );
+							}
+						} else {
+							$extra = null;
+						}
+						return array( $col["Field"], array(
+							"key" => $col["Key"] == "PRI",
+							"type" => $type,
+							"extra" => $extra,
+						) );
+					}, $res );
+					$this->chche = $res;
+				}
+				return $this->load( $this->cache );
+			} else {
+				//throw not conn
+			}
+		}
 	}
 
 	public function key()
