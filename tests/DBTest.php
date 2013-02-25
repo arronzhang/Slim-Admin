@@ -16,6 +16,28 @@ class DBTest extends PHPUnit_Framework_TestCase
 		$base->config( "a", "d" );
 		$this->assertEquals( "d", $base->config("a") );
 	}
+
+	/**
+	 * test child tables
+	 */
+
+	public function testColumn()
+	{
+		$db = new \Slim\Admin\DB();
+		$table = $db->table("name");
+		$this->assertEquals( "Name", $table->alias );
+		$table2 = $db->table("name", "NAME");
+		$this->assertEquals( "NAME", $table->alias );
+		$this->assertEquals( "NAME", $table2->alias );
+		$this->assertEquals( $table, $table2 );
+
+		$table = $db->table("pass", array("new" => true));
+		$this->assertTrue( $table->config("new") );
+
+		$tables = $db->tables();
+		$this->assertEquals( 2, count( $tables ) );
+	}
+
 }
 
 ?>

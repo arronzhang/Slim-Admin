@@ -60,20 +60,24 @@ class Table extends Base
 		parent::__construct( $name, $settings );
 	}
 
-
 	/**
 	 * Configure column
 	 *
 	 * @param  string $name The name of the column
 	 * @param  string|array $settings  If a string, the name of the setting to set or retrieve. Else an associated array of setting names and values
-	 * @param  mixed        $value If name is a string, the value of the setting identified by $name
 	 *
-	 * @return \Slim\Admin\Table
+	 * @return \Slim\Admin\Column
 	 */
-	public function column( $name, $settings, $value = null )
+	public function column( $name, $settings = array() )
 	{
+		if( func_num_args() < 3 && is_string($settings) ) {
+			$settings = array( "label" => $settings );
+		}
+		if( !isset( $this->children[ $name ] ) ) {
+			$name = new Column( $name );
+		}
+		return $this->child( $name, $settings );
 	}
-
 
 	/**
 	 * Get columns
@@ -82,6 +86,7 @@ class Table extends Base
 	 */
 	public function columns()
 	{
+		return $this->childrenList;
 	}
 
 	/**

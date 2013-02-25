@@ -52,14 +52,20 @@ class DB extends Base
 	/**
 	 * Configure table
 	 *
-	 * @param  string $name The name of the table
+	 * @param  string $name The name of the column
 	 * @param  string|array $settings  If a string, the name of the setting to set or retrieve. Else an associated array of setting names and values
-	 * @param  mixed        $value If name is a string, the value of the setting identified by $name
 	 *
 	 * @return \Slim\Admin\Table
 	 */
-	public function table( $name, $settings, $value = null )
+	public function table( $name, $settings = array() )
 	{
+		if( func_num_args() < 3 && is_string($settings) ) {
+			$settings = array( "alias" => $settings );
+		}
+		if( !isset( $this->children[ $name ] ) ) {
+			$name = new Table( $name );
+		}
+		return $this->child( $name, $settings );
 	}
 
 	/**
@@ -69,6 +75,7 @@ class DB extends Base
 	 */
 	public function tables()
 	{
+		return $this->childrenList;
 	}
 
 	/**
