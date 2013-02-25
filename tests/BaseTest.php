@@ -27,7 +27,7 @@ class BaseTest extends PHPUnit_Framework_TestCase
 	/**
 	 * Permit
 	 */
-	public function testPermit()
+	public function testPermitAndChild()
 	{
 		$base = new \Slim\Admin\Base( "user", array( "create" => 0, "del" => "yes" ) );
 		$base->permit("create", 0);
@@ -46,7 +46,7 @@ class BaseTest extends PHPUnit_Framework_TestCase
 		$this->assertEquals( 0, $res["pass"] );
 
 		//children
-		$child = $base->child("name");
+		$child = $base->child("name", array("alias" => "Name"));
 		$this->assertInstanceOf( "\\Slim\\Admin\\Base", $child );
 		$this->assertEquals( $child, $base->child("name") );
 
@@ -58,6 +58,12 @@ class BaseTest extends PHPUnit_Framework_TestCase
 
 		$base->permit( "update", "name, pass, add" );
 		$this->assertEquals( 3, $pass->permit("update") );
+
+		//config...
+		$this->assertEquals( "Name", $child->config("alias") );
+		$child3 = $base->child("name", "alias", "Name2");
+		$this->assertEquals( "Name2", $child3->config("alias") );
+		$this->assertEquals( $child, $child3 );
 	}
 }
 

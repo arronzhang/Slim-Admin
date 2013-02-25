@@ -146,6 +146,9 @@ class Base
 			$child = $name;
 			$name = $child->name;
 		}
+		if( !is_string( $name ) ) {
+			throw new \InvalidArgumentException('$name must a string or Base object.');
+		}
 		if( !isset( $this->children[ $name ] ) ) {
 			if( !$child )
 				$child = new Base( $name );
@@ -160,8 +163,12 @@ class Base
 		} else {
 			$child = $this->children[ $name ];
 		}
-		if( !empty( $settings ) )
-			$child->config( $settings );
+
+		$args = func_get_args();
+		array_shift( $args );
+		if( !empty( $args ) )
+			call_user_func_array( array( $child, "config"), $args );
+
 		return $child;
 	}
 }
