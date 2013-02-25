@@ -41,11 +41,6 @@ class DB extends Base
 	protected $cache;
 
 	/**
-	 * @var array
-	 */
-	protected $tables;
-
-	/**
 	 * Constructor
 	 * @param mix $conn The db connection
 	 */
@@ -53,6 +48,7 @@ class DB extends Base
 	{
 		$this->conn = $conn;
 		parent::__construct( "db", $settings );
+		$this->childClass = "\\Slim\\Admin\\Table";
 	}
 
 	/**
@@ -79,10 +75,11 @@ class DB extends Base
 		if( func_num_args() < 3 && is_string($settings) ) {
 			$settings = array( "alias" => $settings );
 		}
-		if( !isset( $this->children[ $name ] ) ) {
-			$name = new Table( $name, array( "db" => $this ) );
+		$child = $this->child( $name, $settings );
+		if( !$child->config("db") ) {
+			$child->config("db", $this);
 		}
-		return $this->child( $name, $settings );
+		return $child;
 	}
 
 	/**
@@ -115,7 +112,7 @@ class DB extends Base
 		} else {
 			if( $this->conn ) {
 				if ( !$this->cache ) 
-					$this->chche = $this->conn->fetchColumn("SHOW TABLES", MYSQLI_NUM);
+					$this->cache = $this->conn->fetchColumn("SHOW TABLES", MYSQLI_NUM);
 				return $this->load( $this->cache );
 			} else {
 				//throw not conn

@@ -43,7 +43,13 @@ class Base
 	/**
 	 * @var array
 	 */
+	protected $childClass;
+
+	/**
+	 * @var array
+	 */
 	protected $children;
+
 	/**
 	 * @var array
 	 */
@@ -58,6 +64,7 @@ class Base
 	{
 		$this->name = $name;
 		$this->settings = array();
+		$this->childClass = "\\Slim\\Admin\\Base";
 		$this->children = array();
 		$this->childrenList = array();
 		$this->permissions = array();
@@ -72,24 +79,44 @@ class Base
 	 * @return mixed        The value of a setting if only one argument is a string
 	 *
 	 */
-	public function config( $name, $value = null )
+	public function config( $name, $value = null ) {
+		$args = func_get_args();
+		array_unshift( $args, false );
+		return call_user_func_array( array( $this, "_config" ), $args );
+	}
+
+	/**
+	 * Set default config
+	 */
+
+	public function def( $name, $value = null ) {
+		$args = func_get_args();
+		array_unshift( $args, true );
+		return call_user_func_array( array( $this, "_config" ), $args );
+	}
+
+	private function _config( $def, $name, $value = null )
 	{
-		if (func_num_args() === 1) {
+		if (func_num_args() === 2) {
 			if (is_array($name)) {
 				//$this->settings = array_merge($this->settings, $name);
 				foreach ( $name as $key => $value ) {
-					$this->settings[$key] = $value;
+					if( !$def || !isset($this->settings[$key]) )
+						$this->settings[$key] = $value;
 					if( property_exists( $this, $key ) ) {
-						$this->$key = $value;
+						if( !$def || !isset($this->$key) )
+							$this->$key = $value;
 					}
 				}
 			} else {
-				return property_exists( $this, $name ) ? $this->$name : ( isset($this->settings[$name]) ? $this->settings[$name] : null );
+				return property_exists( $this, $name ) && isset($this->$name) ? $this->$name : ( isset($this->settings[$name]) ? $this->settings[$name] : null );
 			}
 		} else {
-			$this->settings[$name] = $value;
+			if( !$def || !isset($this->settings[$name]) )
+				$this->settings[$name] = $value;
 			if( property_exists( $this, $name ) ) {
-				$this->$name = $value;
+				if( !$def || !isset($this->$name) )
+					$this->$name = $value;
 			}
 		}
 	}
@@ -142,7 +169,7 @@ class Base
 	 */
 	public function child( $name, $settings = array() ) {
 		$child = null;
-		if( $name instanceof Base ) {
+		if( $name instanceof $this->childClass ) {
 			$child = $name;
 			$name = $child->name;
 		}
@@ -151,7 +178,7 @@ class Base
 		}
 		if( !isset( $this->children[ $name ] ) ) {
 			if( !$child )
-				$child = new Base( $name );
+				$child = new $this->childClass( $name );
 			$this->children[ $name ] = $child;
 			$this->childrenList[] = $child;
 			//auto complete permit

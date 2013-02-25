@@ -31,6 +31,40 @@ class Table extends Base
 	public $pageSize = 15;
 
 	/**
+	 * @var array types mapper
+	 */
+	public static $types = array(
+		"bit" => "number",
+		"int" => "number",
+		"tinyint" => "number",
+		"smallint" => "number",
+		"mediumint" => "number",
+		"bigint" => "number",
+		"decimal" => "number",
+		"float" => "number",
+		"double" => "number",
+		"char" => "text",
+		"varchar" => "text",
+		"binary" => "text",
+		"varbinary" => "text",
+		"text" => "textarea",
+		"tinytext" => "textarea",
+		"mediumtext" => "textarea",
+		"longtext" => "textarea",
+		"blob" => "textarea",
+		"tinyblob" => "textarea",
+		"mediumblob" => "textarea",
+		"longblob" => "textarea",
+		"enum" => "select",
+		"set" => "checkgroup",
+		"date" => "text",
+		"datetime" => "text",
+		"timestamp" => "text",
+		"time" => "text",
+		"year" => "text",
+	);
+
+	/**
 	 * @var string
 	 */
 	public $name;
@@ -41,9 +75,15 @@ class Table extends Base
 	public $alias;
 
 	/**
-	 * @var array
+	 * @var string
 	 */
-	protected $columns;
+	public $url;
+
+	/**
+	 *
+	 * @var mix
+	 */
+	protected $cache;
 
 	/**
 	 * Constructor
@@ -54,6 +94,7 @@ class Table extends Base
 	{
 		$this->alias = ucfirst( $name );
 		parent::__construct( $name, $settings );
+		$this->childClass = "\\Slim\\Admin\\Column";
 	}
 
 	/**
@@ -76,9 +117,6 @@ class Table extends Base
 	{
 		if( func_num_args() < 3 && is_string($settings) ) {
 			$settings = array( "label" => $settings );
-		}
-		if( !isset( $this->children[ $name ] ) ) {
-			$name = new Column( $name );
 		}
 		return $this->child( $name, $settings );
 	}
@@ -126,7 +164,7 @@ class Table extends Base
 		if( func_num_args() ) {
 			if( is_array( $data ) ) {
 				for ($i = 0; $i < count($data); $i++) {
-					call_user_func_array( array( $this, "table" ), $data[$i] );
+					$this->column($data[$i][0])->def($data[$i][1]);
 				}
 			}
 			return $data;
@@ -134,10 +172,11 @@ class Table extends Base
 			$conn = $this->conn();
 			if( $conn ) {
 				if ( !$this->cache ) {
-					$res = $this->conn->fetchAll("DESCRIBE " . $name);
+					$res = $this->conn()->fetchAll("DESCRIBE " . $this->name);
 					$res = array_map( function($col) {
 						$res = $col["Type"];
 						preg_match("/^[\w]+/", $res, $type);
+						$type = strtolower( $type[0] );
 						preg_match("/\(([^)]+)/", $res, $extra);
 						if( !empty( $extra ) ) {
 							$extra = $extra[1];
@@ -150,13 +189,26 @@ class Table extends Base
 						} else {
 							$extra = null;
 						}
+						$_type = $type;
+						$type = isset( Table::$types[$type] ) ? Table::$types[$type] : "text";
+						if( $_type == "tinyint" && $extra && $extra[0] == 1 ) {
+							$type = "bool";
+						}
+						if( $type == "number" ) {
+							$extra = $extra && isset($extra[0]) ? ($extra && isset($extra[1]) ? pow(0.1, $extra[1]) : 1) : "any";
+						} else if( $type == "select" || $type == "checkgroup" ) {
+							$extra = array_map( function( $v ){
+								return array( $v, $v );
+							}, $extra );
+						}
 						return array( $col["Field"], array(
 							"key" => $col["Key"] == "PRI",
+							"_type" => $_type,
 							"type" => $type,
 							"extra" => $extra,
 						) );
 					}, $res );
-					$this->chche = $res;
+					$this->cache = $res;
 				}
 				return $this->load( $this->cache );
 			} else {

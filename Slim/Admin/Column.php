@@ -79,6 +79,15 @@ class Column extends Base
 	}
 
 	/**
+	 * Is key
+	 *
+	 * @return bool 
+	 */
+	public function key(){
+		return $this->config("key");
+	}
+
+	/**
 	 * Format data
 	 *
 	 */
