@@ -46,13 +46,25 @@ class DB extends Base
 	 */
 	public function __construct( $conn = null, $settings = array() )
 	{
-		parent::__construct( null, $settings );
+		$this->conn = $conn;
+		parent::__construct( "db", $settings );
+	}
+
+	/**
+	 * Configure connection
+	 *
+	 */
+	public function conn( $conn = null ) {
+		if( func_num_args() ) {
+			$this->conn = $conn;
+		}
+		return $this->conn;
 	}
 
 	/**
 	 * Configure table
 	 *
-	 * @param  string $name The name of the column
+	 * @param  string $name The name of the table
 	 * @param  string|array $settings  If a string, the name of the setting to set or retrieve. Else an associated array of setting names and values
 	 *
 	 * @return \Slim\Admin\Table
@@ -63,7 +75,7 @@ class DB extends Base
 			$settings = array( "alias" => $settings );
 		}
 		if( !isset( $this->children[ $name ] ) ) {
-			$name = new Table( $name );
+			$name = new Table( $name, array( "db" => $this ) );
 		}
 		return $this->child( $name, $settings );
 	}
