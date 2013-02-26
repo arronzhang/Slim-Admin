@@ -50,6 +50,23 @@ class TableTest extends PHPUnit_Framework_TestCase
 		$this->assertEquals( 2, count( $columns ) );
 	}
 
+	/**
+	 * test urlFor
+	 */
+
+	public function testUrlFor()
+	{
+		$table = new \Slim\Admin\Table("users", array( "url" => "/users" ) );
+		$this->assertEquals( "/users", $table->url );
+		$this->assertEquals( "/users/new", $table->urlFor("new") );
+		$this->assertEquals( "/users/new?a=1", $table->urlFor("new", array("a" => "1")) );
+		$this->assertEquals( "/users/new?a=1&b=2", $table->urlFor("new", array("a" => "1", "b" => "2")) );
+		$this->assertEquals( "/users/new?a=1&b=2", $table->urlFor("new", array("a" => "1"), array( "b" => "2")) );
+		$this->assertEquals( "/users?a=1&b=2", $table->urlFor(array("a" => "1"), array( "b" => "2")) );
+		$this->assertEquals( "/users?a=1", $table->urlFor(array("a" => "1")) );
+		$this->assertEquals( "/users?a=1&b=2&c=3", $table->urlFor(array("a" => "1"), array( "b" => "2"), array("c"=>"3")) );
+		$this->assertEquals( "/users/new/e?a=1&b=2&c=3", $table->urlFor("new", "e", array("a" => "1"), array( "b" => "2"), array("c"=>"3")) );
+	}
 }
 
 ?>

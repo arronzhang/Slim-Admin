@@ -20,23 +20,29 @@ namespace Slim;
  *
  */
 
+
 class Admin extends \Slim\Slim
 {
 
 	/**
-	 * @var db
+	 * @var DB
 	 */
 	protected $db;
 
 	/**
-	 * @var tables
+	 * @var array
 	 */
 	protected $tables;
 
 	/**
-	 * @var table
+	 * @var Table
 	 */
 	protected $table;
+
+	/**
+	 * @var mix
+	 */
+	protected $data;
 
 	/**
 	 * Constructor
@@ -62,7 +68,11 @@ class Admin extends \Slim\Slim
 	 * table list
 	 * @return  array
 	 */
-	public function tables(){
+	public function tables( $tables = null  ){
+		if( func_num_args() ) {
+			$this->tables = $tables;
+			$this->view()->setData( "tables", $tables );
+		}
 		return $this->tables;
 	}
 
@@ -73,8 +83,21 @@ class Admin extends \Slim\Slim
 	public function table( $table = null ){
 		if( func_num_args() ) {
 			$this->table = $table;
+			$this->view()->setData( "table", $table );
 		}
 		return $this->table;
+	}
+
+	/**
+	 * current table
+	 * @return  \Slim\Admin\Table
+	 */
+	public function data( $data = null ){
+		if( func_num_args() ) {
+			$this->data = $data;
+			$this->view()->setData( "data", $data );
+		}
+		return $this->data;
 	}
 
 	/**
@@ -88,10 +111,7 @@ class Admin extends \Slim\Slim
 		usort( $tables, function($a, $b) {
 			return $b->permit("manage") - $a->permit("manage");
 		} );
-		$this->tables = $tables;
-
-		$view = $this->view();
-		$view->setData( "tables", $tables );
+		$this->tables( $tables );
 
 		//Set default router...
 		$len = count($tables);
@@ -99,7 +119,10 @@ class Admin extends \Slim\Slim
 			$table = $tables[$i];
 			if( $table->permit("manage") ) {
 				$this->index( $table );
-				$this->create( $table );
+				if( $table->permit("create") ) {
+					$this->create( $table );
+					$this->save( $table );
+				}
 			}
 		}
 
@@ -109,6 +132,8 @@ class Admin extends \Slim\Slim
 				$table->url = $this->urlFor( $table->name );
 			}
 		}
+
+		$this->hookColumn();
 		$this->run();
 	}
 
@@ -122,10 +147,14 @@ class Admin extends \Slim\Slim
 		$this->get("/" . $name, function() use ($table, $app, $callable) {
 			$table->load();
 			$app->table( $table );
-			$filter = $app->request()->get();
-			$app->view()->appendData( array(
-				"table" => $table,
-			) );
+			$req = $app->request();
+
+			$app->data( 
+				$table->conditions( $req->get() )->sort( 
+					$req->get("sort") 
+				)->pager( $req->get("page") )->all() 
+			);
+
 			if( is_callable( $callable ) ) {
 				call_user_func( $callable );
 			} else {
@@ -144,10 +173,7 @@ class Admin extends \Slim\Slim
 		$this->get("/" . $name . "/new", function() use ($table, $app, $callable) {
 			$table->load();
 			$app->table( $table );
-			$app->view()->appendData( array(
-				"table" => $table,
-				"data" => $app->request()->get(),
-			) );
+			$app->data( (object)$app->request()->get() );
 			if( is_callable( $callable ) ) {
 				call_user_func( $callable );
 			} else {
@@ -166,51 +192,76 @@ class Admin extends \Slim\Slim
 		$this->post("/" . $name . "/new", function() use ($table, $app, $callable) {
 			$table->load();
 			$app->table( $table );
-			$data = $app->request()->post();
-			$app->view()->appendData( array(
-				"table" => $table,
-			) );
-			if( is_callable( $callable ) ) {
-				call_user_func( $callable );
-			} else {
+			$data = (object)$app->request()->post();
+			$app->data( $data );
+			try{
+				$app->applyHookColumn( $data );
+				if( is_callable( $callable ) ) {
+					call_user_func( $callable );
+				} else {
+					if( $table->create( $data ) ) {
+						$app->flash("success", "新增成功!");
+						if( $app->request()->post("_next") ) {
+							$app->redirect( $table->url . "/new" );
+						} else {
+							$app->redirect( $table->url );
+						}
+
+					} else {
+						$app->flashNow( "error", "新增失败" );
+						$app->render("new.html.twig");
+					}
+				}
+			} catch( Exception $e ) {
+				$app->flashNow( "error", $e->getMessage() );
 				$app->render("new.html.twig");
 			}
 		});
 	}
 
-	/**
-	 * Get the URL for a named route
-	 * @param  string               $name       The route name
-	 * @param  array                $params     Associative array of URL parameters and replacement values
-	 * @param  array                $qs     Query string for the url
-	 * @throws \RuntimeException    If named route does not exist
-	 * @return string
-	 */
-	public function urlFor($name, $params = array(), $qs = array() )
-	{
-		if( !is_array($params) ) {
-			$params = array( "id" => $params );
-		}
-		$path = parent::urlFor( $name, $params );
-		return $path;
-		if( func_num_args() > 2 ) {
-			$qs = call_user_func_array("array_merge", array_slice( func_get_args(), 2 ));
-			$tmp = array();
-			foreach ($qs as $key => $val) {
-				if( $val !== "" ) {
-					if( is_array( $val ) ) {
-						foreach ($val as $v) {
-							$tmp[] = $key . "[]=" . $v;
-						}
-					} else {
-						$tmp[] = $key . "=" . $val;
-					}
+	public function hookColumn() {
+		$app = $this;
+		$this->hook("admin.column.image", function ( $option ) use ($app) {
+			$column = $option[0];
+			$data = $option[1];
+			$storage = new \Upload\Storage\FileSystem( $app->config("image.path") );
+			$name = $column->name;
+			if( isset($_FILES[$name]) ){
+				$file = new \Upload\File( $name, $storage );
+				if( $file->isOk() ) {
+					//$file->setName(time() . rand( 1 , 10000 ));
+					$file->addValidations(array(
+						new \Upload\Validation\Mimetype(
+							array( 'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/bmp' )
+						),
+					));
+					$file->upload();
+					$data->$name = $file->getNameWithExtension();
 				}
 			}
-			$qs = implode( $tmp, "&" );
-			return empty( $qs ) ? $path : ( $path . "?" . $qs );
+		});
+
+		$this->hook("admin.column.file", function ( $option ) use($app) {
+			$column = $option[0];
+			$data = $option[1];
+			$storage = new \Upload\Storage\FileSystem( $app->config("file.path") );
+			$name = $column->name;
+			if( isset($_FILES[$name]) ){
+				$file = new \Upload\File( $name, $storage );
+				if( $file->isOk() ) {
+					$file->upload();
+					$data->$name = $file->getNameWithExtension();
+				}
+			}
+		});
+	}
+
+	public function applyHookColumn( $data ) {
+		$columns = $this->table()->columns();
+		for ($i = 0; $i < count($columns); $i++) {
+			$col = $columns[$i];
+			$this->applyHook( "admin.column." . $col->type, array( $col, $data ) );
 		}
-		return $path;
 	}
 
 	/********************************************************************************

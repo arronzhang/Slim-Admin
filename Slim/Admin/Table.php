@@ -28,7 +28,25 @@ class Table extends Base
 	/**
 	 * @var number
 	 */
-	public $pageSize = 15;
+	public $per_size = 15;
+
+	/**
+	 * @var sort
+	 */
+	protected $sort;
+	protected $sort_sql = "";
+
+	/**
+	 * @var page
+	 */
+	protected $pager;
+	protected $pager_sql = "";
+
+	/**
+	 * @var conditions
+	 */
+	protected $conditions = array();
+	protected $conditions_sql = "";
 
 	/**
 	 * @var array types mapper
@@ -86,6 +104,12 @@ class Table extends Base
 	protected $cache;
 
 	/**
+	 *
+	 * @var mix
+	 */
+	protected $key;
+
+	/**
 	 * Constructor
 	 *
 	 * @param mix $name The table name
@@ -132,6 +156,75 @@ class Table extends Base
 	}
 
 	/**
+	 * urlFor
+	 *
+	 * @param array $qs query options
+	 *
+	 * @return url string
+	 *
+	 */
+	public function urlFor( $qs = array() )
+	{
+		$path = $this->url;
+		if( !is_array($qs) ) {
+			if(is_object($qs)){
+				$key = $this->key();
+				if( $key )
+					$qs = $qs->$key;
+			}
+			$path .= "/" . $qs;
+			$qs = array();
+		}
+
+		if( func_num_args() > 1 ) {
+			$args = array_slice( func_get_args(), 1 );
+			$len = count($args);
+			for ($i = 0; $i < $len; $i++) {
+				$arg = $args[$i];
+				if( is_array($arg) ) {
+					$qs = array_merge( $qs, $arg );
+				} else {
+					$path .= "/" . $arg;
+				}
+			}
+		}
+
+		$tmp = array();
+		foreach ($qs as $key => $val) {
+			if( !is_null($val) && $val !== "" ) {
+				if( is_array( $val ) ) {
+					foreach ($val as $v) {
+						$tmp[] = $key . "[]=" . urlencode($v);
+					}
+				} else {
+					$tmp[] = $key . "=" . urlencode($val);
+				}
+			}
+		}
+		$qs = implode( $tmp, "&" );
+		return empty( $qs ) ? $path : ( $path . "?" . $qs );
+		return $path;
+	}
+
+	public function urlForPage( $page )
+	{
+		if( !$page )
+			return "javascript:void(0);";
+		return $this->urlFor( array(
+			"page" => $page,
+			"sort" => $this->sort(),
+		), $this->conditions() );
+	}
+
+	public function urlForSort( $name )
+	{
+		$col = $this->column( $name );
+		return $this->urlFor( array(
+			"sort" => $col->order == 1 ? "-" . $col->name : $col->name
+		), $this->conditions() );
+	}
+
+	/**
 	 * Association
 	 *
 	 */
@@ -161,6 +254,7 @@ class Table extends Base
 	 */
 	public function load( $data = array() )
 	{
+		$ar = array();
 		if( func_num_args() ) {
 			if( is_array( $data ) ) {
 				for ($i = 0; $i < count($data); $i++) {
@@ -172,7 +266,7 @@ class Table extends Base
 			$conn = $this->conn();
 			if( $conn ) {
 				if ( !$this->cache ) {
-					$res = $this->conn()->fetchAll("DESCRIBE " . $this->name);
+					$res = $conn->fetchAll("DESCRIBE " . $this->name);
 					$res = array_map( function($col) {
 						$res = $col["Type"];
 						preg_match("/^[\w]+/", $res, $type);
@@ -219,14 +313,124 @@ class Table extends Base
 
 	public function key()
 	{
+		if( !$this->key ) {
+			$columns = $this->columns();
+			$len = count($columns);
+			for ($i = 0; $i < $len; $i++) {
+				$col = $columns[$i];
+				if( $col->key() ) {
+					$this->key = $col->name;
+					break;
+				}
+			}
+			if( !$this->key ) {
+				$conn = $this->conn();
+				if( $conn ) {
+					$key = $conn->fetchValue("SELECT `COLUMN_NAME` FROM `information_schema`.`COLUMNS` WHERE (`TABLE_SCHEMA` = DATABASE()) AND (`TABLE_NAME` = ?)  AND (`COLUMN_KEY` = 'PRI');", $this->name);
+					if( $key )
+						$this->key = $this->column( $key, "key", true )->name;
+				}
+			}
+		}
+		return $this->key;
 	}
 
-	public function all( $page, $sort = null, $filters = array(), $ignoreAssociation = false )
+	public function sort( $name = null )
 	{
+		if( !func_num_args() ) {
+			return $this->sort;
+		}
+		$sort = null;
+		$asc = false;
+		if( $name ) {
+			if( $name && substr($name, 0, 1) == "-" ) {
+				$name = substr($name, 1);
+				$asc = true;
+			}
+			$columns = $this->columns();
+			$len = count( $columns );
+			for ($i = 0; $i < $len; $i++) {
+				$col = $columns[$i];
+				if( $name == $col->name ) {
+					$col->order = $asc ? -1 : 1;
+					$sort = $name;
+				}
+			}
+		}
+
+		if( !$sort ) {
+			$key = $this->key();
+			if( $key ) {
+				$sort = $key;
+				$asc = false;
+			}
+		} else {
+			$this->sort = $asc ? ("-" . $sort) : $sort;
+		}
+
+		if( $sort ) {
+			$this->sort_sql = " ORDER BY `" . $sort . "` " . ($asc ? "ASC" : "DESC");
+		}
+		return $this;
 	}
 
-	public function pager( $page, $filters = array() )
+	public function pager( $page = null )
 	{
+		if( !func_num_args() ) {
+			return $this->pager;
+		}
+		$conn = $this->conn();
+		$num = 0;
+		if( $conn ) {
+			$num = $conn->fetchValue("SELECT count(*) FROM " 
+				. $this->name . $this->conditions_sql, $this->conditions);
+		}
+		$this->pager = new Pager( $page, $num, $this->config("per_size") );
+		$this->pager_sql = " LIMIT :__size OFFSET :__offset";
+		return $this;
+	}
+
+	public function conditions( $conditions = array() )
+	{
+		if( !func_num_args() ) {
+			return $this->conditions;
+		}
+		$columns = $this->columns();
+		$len = count( $columns );
+		$where = array();
+		$filters = array();
+		for ($i = 0; $i < $len; $i++) {
+			$col = $columns[$i];
+			$name = $col->name;
+			if( isset( $conditions[$name] ) && $conditions[$name] !== "") {
+				$filters[$name] = $conditions[$name];
+				$where[] = "(`" . $name . "` ".(is_array( $conditions[$name] ) ? "IN" : "=")." :" . $name . ")";
+			}
+		}
+		$this->conditions_sql = empty($where) ? "" : " WHERE " . implode(" AND ", $where);
+		$this->conditions = $filters;
+		return $this;
+	}
+
+	public function all( $ignoreAssociation = false )
+	{
+		$conn = $this->conn();
+		$data = array();
+		if( $conn ) {
+			$conditions = $this->conditions;
+			$pager = $this->pager;
+			if( $pager ) {
+				$conditions["__size"] = $pager->per_size;
+				$conditions["__offset"] = $pager->offset;
+			}
+			$sql = "SELECT * FROM `" . $this->name . "`" . $this->conditions_sql . $this->sort_sql . $this->pager_sql;
+			$data = $conn->fetchAll($sql, MYSQLI_ASSOC, $conditions);
+
+			for ($i = 0; $i < count($data); $i++) {
+				$data[$i] = (object)$data[$i];
+			}
+		}
+		return $data;
 	}
 
 	public function find( $id, $ignoreAssociation = false )
@@ -235,6 +439,7 @@ class Table extends Base
 
 	public function create( $values, $ignorePermission = false )
 	{
+		return 1;
 	}
 
 	public function update( $id, $values, $ignorePermission = false )

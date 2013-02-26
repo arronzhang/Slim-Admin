@@ -26,11 +26,6 @@ namespace Slim\Admin;
 class DB extends Base
 {
 	/**
-	 * @var number
-	 */
-	public static $pageSize = 15;
-
-	/**
 	 * @var mix
 	 */
 	protected $conn;

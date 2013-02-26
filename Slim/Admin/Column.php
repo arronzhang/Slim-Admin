@@ -38,6 +38,11 @@ class Column extends Base
 	/**
 	 * @var string
 	 */
+	public $order = 0;
+
+	/**
+	 * @var string
+	 */
 	public $type;
 
 	/**
