@@ -395,6 +395,7 @@ class Table extends Base
 		if( !func_num_args() ) {
 			return $this->conditions;
 		}
+		$conditions = array_merge( $this->conditions, $conditions );
 		$columns = $this->columns();
 		$len = count( $columns );
 		$where = array();
@@ -435,19 +436,78 @@ class Table extends Base
 
 	public function find( $id, $ignoreAssociation = false )
 	{
+		$conn = $this->conn();
+		if( $conn ) {
+			$key = $this->key();
+			if( !$key || empty($id) )
+				return null;
+			$this->conditions( array($key => $id) );
+			$sql = "SELECT * FROM `" . $this->name . "`" . $this->conditions_sql;
+			$data = $conn->fetchOne($sql, MYSQLI_ASSOC, $this->conditions);
+			if( $data )
+				return (object)$data;
+		}
+		return null;
 	}
 
 	public function create( $values, $ignorePermission = false )
 	{
-		return 1;
+		$conn = $this->conn();
+		if( $conn ) {
+			$data = array();
+			$values = is_object($values) ? (array)$values : $values;
+			$columns = $this->columns();
+			$len = count($columns);
+			for ($i = 0; $i < $len; $i++) {
+				$col = $columns[$i];
+				$name = $col->name;
+				if( ($ignorePermission || $col->permit("create")) && !$col->key() && isset($values[$name]) ) {
+					$data[$name] = is_array($values[$name]) ? implode(",", $values[$name]) : $values[$name];
+				}
+			}
+			return $conn->save( $this->name, $data );
+		}
+		return null;
 	}
 
 	public function update( $id, $values, $ignorePermission = false )
 	{
+		$conn = $this->conn();
+		if( $conn ) {
+			$data = array();
+			$key = $this->key();
+			if( !$key || empty($id) )
+				return null;
+			$data[ $key ] = $id;
+			$values = is_object($values) ? (array)$values : $values;
+			$columns = $this->columns();
+			$len = count($columns);
+			for ($i = 0; $i < $len; $i++) {
+				$col = $columns[$i];
+				$name = $col->name;
+				if( ($ignorePermission || $col->permit("update")) && !$col->key() && isset($values[$name]) ) {
+					$data[$name] = is_array($values[$name]) ? implode(",", $values[$name]) : $values[$name];
+				}
+			}
+			return $conn->save( $this->name, $data );
+		}
+		return null;
 	}
 
-	public function delete( $id, $ignorePermission = false )
+	public function delete( $id )
 	{
+		$conn = $this->conn();
+		if( $conn ) {
+			$data = array();
+			$key = $this->key();
+			if( !$key || empty($id) )
+				return null;
+
+			$this->conditions( array($key => $id) );
+			$sql = "DELETE FROM `" . $this->name . "`" . $this->conditions_sql;
+			return $conn->query($sql, $this->conditions);
+		}
+		return null;
 	}
 }
 

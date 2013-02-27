@@ -123,6 +123,13 @@ class Admin extends \Slim\Slim
 					$this->create( $table );
 					$this->save( $table );
 				}
+				if( $table->permit("update") ) {
+					$this->edit( $table );
+					$this->update( $table );
+				}
+				if( $table->permit("delete") ) {
+					$this->del( $table );
+				}
 			}
 		}
 
@@ -212,12 +219,106 @@ class Admin extends \Slim\Slim
 						$app->render("new.html.twig");
 					}
 				}
-			} catch( Exception $e ) {
+			} catch( \Exception $e ) {
 				$app->flashNow( "error", $e->getMessage() );
 				$app->render("new.html.twig");
 			}
 		});
 	}
+
+	/**
+	 * Router for edit data
+	 */
+	public function edit($table, $callable = null){
+		$table = $this->db->table( $table );
+		$name = $table->name;
+		$app = $this;
+		$this->get("/" . $name . "/:id", function($id) use ($table, $app, $callable) {
+			$table->load();
+			$app->table( $table );
+			$data = $table->find( $id );
+			if( !$data )
+				return $app->notFound();
+
+			$app->view()->setData( "_referrer", $app->request()->getReferrer() );
+			$app->data( $data );
+
+			if( is_callable( $callable ) ) {
+				call_user_func( $callable );
+			} else {
+				$app->render("edit.html.twig");
+			}
+		})->name( $name . "_edit" );
+	}
+
+	/**
+	 * Router for update data
+	 */
+	public function update($table, $callable = null){
+		$table = $this->db->table( $table );
+		$name = $table->name;
+		$app = $this;
+		$this->put("/" . $name . "/:id", function($id) use ($table, $app, $callable) {
+			$table->load();
+			$app->table( $table );
+			$data = $table->find( $id );
+			if( !$data )
+				return $app->notFound();
+
+			$req = $app->request();
+			$ref = $req->post("_referrer");
+			$app->view()->setData( "_referrer", $ref );
+
+			$data = (object)array_merge( (array)$data, $req->post() );
+			$app->data( $data );
+
+			try{
+				$app->applyHookColumn( $data );
+				if( is_callable( $callable ) ) {
+					call_user_func( $callable );
+				} else {
+					if( $table->update( $id, $data ) ) {
+						$app->flash("success", "更新成功!");
+						$app->redirect( empty($ref) ? $table->url : $ref );
+					} else {
+						$app->flashNow( "error", "更新失败" );
+						$app->render("edit.html.twig");
+					}
+				}
+			} catch( \Exception $e ) {
+				$app->flashNow( "error", $e->getMessage() );
+				$app->render("edit.html.twig");
+			}
+		});
+	}
+
+	/**
+	 * Router for delete data
+	 */
+	public function del($table, $callable = null){
+		$table = $this->db->table( $table );
+		$name = $table->name;
+		$app = $this;
+		$this->delete("/" . $name . "/:id", function($id) use ($table, $app, $callable) {
+			$table->load();
+			$app->table( $table );
+			$data = $table->find( $id );
+			if( !$data )
+				return $app->notFound();
+			try{
+				if( is_callable( $callable ) ) {
+					call_user_func( $callable );
+				} else {
+					$app->flash("success", $table->delete( $id ) ? "删除成功!" : "删除失败");
+				}
+			} catch( \Exception $e ) {
+				$app->flash( "error", $e->getMessage() );
+			}
+			$ref = $app->request()->getReferrer();
+			$app->redirect( empty($ref) ? $table->url : $ref );
+		});
+	}
+
 
 	public function hookColumn() {
 		$app = $this;
