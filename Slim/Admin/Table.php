@@ -63,7 +63,7 @@ class Table extends Base
 	/**
 	 * @var number
 	 */
-	public $per_size = 15;
+	public $per_size = 20;
 
 	/**
 	 * @var string
@@ -314,6 +314,41 @@ class Table extends Base
 	 */
 	public function format( $data )
 	{
+		if( is_object($data) ) {
+			$data = array( $data );
+		}
+		$columns = $this->columns();
+		$len = count($columns);
+
+		//set default format
+		if( $len && !$columns[0]->formatter ) {
+			$columns[0]->formatter = function($table, $row, $val) {
+				return array("link", $val, $table->urlFor($row));
+			};
+		}
+
+		$cols = array();
+		for ($i = 0; $i < $len; $i++) {
+			$col = $columns[$i];
+			if( $col->formatter ) {
+				$cols[] = $col;
+			}
+		}
+		$len = count( $data );
+		$len2 = count( $cols );
+		for ($i = 0; $i < $len; $i++) {
+			$dd = $data[$i];
+			for ($j = 0; $j < $len2; $j++) {
+				$col = $cols[$j];
+				$name = $col->name;
+				$val = isset($dd->$name) ? $dd->$name : null;
+				if( is_string($col->formatter) ) {
+					$dd->$name = array($col->formatter, $val);
+				}else if( is_callable($col->formatter) ) {
+					$dd->$name = call_user_func( $col->formatter, $this, $dd, $val );
+				}
+			}
+		}
 	}
 
 	/**
