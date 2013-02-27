@@ -157,9 +157,10 @@ class Admin extends \Slim\Slim
 			$req = $app->request();
 
 			$app->data( 
-				$table->conditions( $req->get() )->sort( 
-					$req->get("sort") 
-				)->pager( $req->get("page") )->all() 
+				$table->conditions( $req->get() )
+				->sort( $req->get("sort") )
+				->pager( $req->get("page") )
+				->all() 
 			);
 
 			if( is_callable( $callable ) ) {
@@ -178,9 +179,10 @@ class Admin extends \Slim\Slim
 		$name = $table->name;
 		$app = $this;
 		$this->get("/" . $name . "/new", function() use ($table, $app, $callable) {
-			$table->load();
+			$params = $app->request()->get();
+			$table->load()->associate( $params );
 			$app->table( $table );
-			$app->data( (object)$app->request()->get() );
+			$app->data( (object)$params );
 			if( is_callable( $callable ) ) {
 				call_user_func( $callable );
 			} else {
@@ -197,9 +199,10 @@ class Admin extends \Slim\Slim
 		$name = $table->name;
 		$app = $this;
 		$this->post("/" . $name . "/new", function() use ($table, $app, $callable) {
-			$table->load();
+			$params = $app->request()->post();
+			$table->load()->associate( $params );
 			$app->table( $table );
-			$data = (object)$app->request()->post();
+			$data = (object)$params;
 			$app->data( $data );
 			try{
 				$app->applyHookColumn( $data );

@@ -23,31 +23,9 @@ namespace Slim\Admin;
  *
  */
 
+
 class Table extends Base
 {
-	/**
-	 * @var number
-	 */
-	public $per_size = 15;
-
-	/**
-	 * @var sort
-	 */
-	protected $sort;
-	protected $sort_sql = "";
-
-	/**
-	 * @var page
-	 */
-	protected $pager;
-	protected $pager_sql = "";
-
-	/**
-	 * @var conditions
-	 */
-	protected $conditions = array();
-	protected $conditions_sql = "";
-
 	/**
 	 * @var array types mapper
 	 */
@@ -83,6 +61,11 @@ class Table extends Base
 	);
 
 	/**
+	 * @var number
+	 */
+	public $per_size = 15;
+
+	/**
 	 * @var string
 	 */
 	public $name;
@@ -110,6 +93,29 @@ class Table extends Base
 	protected $key;
 
 	/**
+	 * @var string
+	 */
+	protected $sort;
+	protected $sort_sql = "";
+
+	/**
+	 * @var Pager
+	 */
+	protected $pager;
+	protected $pager_sql = "";
+
+	/**
+	 * @var array
+	 */
+	protected $conditions = array();
+	protected $conditions_sql = "";
+
+	/**
+	 * @var array
+	 */
+	protected $belong;
+
+	/**
 	 * Constructor
 	 *
 	 * @param mix $name The table name
@@ -117,6 +123,7 @@ class Table extends Base
 	public function __construct( $name, $settings = array() )
 	{
 		$this->alias = ucfirst( $name );
+		$this->belong = array();
 		parent::__construct( $name, $settings );
 		$this->childClass = "\\Slim\\Admin\\Column";
 	}
@@ -228,12 +235,77 @@ class Table extends Base
 	 * Association
 	 *
 	 */
+
+	public function associate( $values = array() )
+	{
+		if( !empty( $this->belong ) ) {
+			foreach ( $this->belong as $key => $o ) {
+				$data = array();
+				$table = $o["table"];
+				$scope = $o["scope"];
+				$scopekey = $o["scopekey"];
+				if( $scope ) {
+					if(isset($values[$scope]) && $values[$scope] !== "") {
+						$table->load();
+						$k = $scopekey ? $scopekey : $scope;
+						$table->conditions( array( $k => $values[$scope] ) );
+						$data = $table->pair($o["display"]);
+					}
+				} else {
+					$table->load();
+					$data = $table->pair($o["display"]);
+				}
+				$this->column( $key, array("type"=>"select", "extra"=>$data) );
+			}
+		}
+		return $this;
+	}
+
 	public function has( $table, $remoteKey, $locDisplayKey )
 	{
 	}
 
-	public function belong( $table, $locKey, $remoteDisplayKey )
+	public function belong( $table, $locKey, $remoteDisplayKey, $scope = null, $scopekey = null )
 	{
+		$this->belong[ $locKey ] = array(
+			"table" => $table, 
+			"display" => $remoteDisplayKey, 
+			"scope" => $scope,
+			"scopekey" => $scopekey,
+		);
+	}
+
+	public function urlForFilter($name, $value)
+	{
+		return $this->urlFor($this->conditions, array($name => $value));
+	}
+
+	/**
+	 * Filters
+	 */
+	public function filters()
+	{
+		$columns = $this->columns();
+		$filters = array();
+		$len = count($columns);
+		for ($i = 0; $i < $len; $i++) {
+			$col = $columns[$i];
+			if( $col->type == "select" && $col->permit("filter") ) {
+				$name = $col->name;
+				$value = isset($this->conditions[$name]) ? $this->conditions[$name] : "";
+				$all = $value === "";
+				$extra = array( array( $this->urlForFilter($name, ""), "所有" . $col->label, $all ) );
+				if(is_array($col->extra)) {
+					$len2 = count( $col->extra );
+					for ($j = 0; $j < $len2; $j++) {
+						$dd = $col->extra[$j];
+						$extra[] = array($this->urlForFilter($name, $dd[0]), $dd[1], !$all && $value == $dd[0]);
+					}
+				}
+				$filters[] = $extra;
+			}
+		}
+		return $filters;
 	}
 
 	/**
@@ -261,7 +333,7 @@ class Table extends Base
 					$this->column($data[$i][0])->def($data[$i][1]);
 				}
 			}
-			return $data;
+			return $this;
 		} else {
 			$conn = $this->conn();
 			if( $conn ) {
@@ -309,6 +381,7 @@ class Table extends Base
 				//throw not conn
 			}
 		}
+		return $this;
 	}
 
 	public function key()
@@ -399,21 +472,53 @@ class Table extends Base
 		$columns = $this->columns();
 		$len = count( $columns );
 		$where = array();
-		$filters = array();
+		$ar = array();
 		for ($i = 0; $i < $len; $i++) {
 			$col = $columns[$i];
 			$name = $col->name;
 			if( isset( $conditions[$name] ) && $conditions[$name] !== "") {
-				$filters[$name] = $conditions[$name];
+				$ar[$name] = $conditions[$name];
 				$where[] = "(`" . $name . "` ".(is_array( $conditions[$name] ) ? "IN" : "=")." :" . $name . ")";
 			}
 		}
 		$this->conditions_sql = empty($where) ? "" : " WHERE " . implode(" AND ", $where);
-		$this->conditions = $filters;
+		$this->conditions = $ar;
 		return $this;
 	}
 
-	public function all( $ignoreAssociation = false )
+	/**
+	 * Query
+	 *
+	 */
+
+	public function pair( $display )
+	{
+		$conn = $this->conn();
+		$data = array();
+		if( $conn ) {
+			$key = $this->key();
+			if( $key ) {
+				$data = $conn->fetchAll( "SELECT `".$key."`,`".$display."` FROM `".$this->name."`" . $this->conditions_sql . $this->sort_sql, MYSQLI_NUM, $this->conditions);
+			}
+		}
+		return $data;
+	}
+
+	protected function dictionary()
+	{
+		$columns = $this->columns();
+		$len = count($columns);
+		$data = array();
+		for ($i = 0; $i < $len; $i++) {
+			$col = $columns[$i];
+			if( $col->type == "select" ) {
+				$data[$col->name] = self::array_pair( $col->extra );
+			}
+		}
+		return $data;
+	}
+
+	public function all()
 	{
 		$conn = $this->conn();
 		$data = array();
@@ -426,15 +531,22 @@ class Table extends Base
 			}
 			$sql = "SELECT * FROM `" . $this->name . "`" . $this->conditions_sql . $this->sort_sql . $this->pager_sql;
 			$data = $conn->fetchAll($sql, MYSQLI_ASSOC, $conditions);
-
+			$this->associate( $this->conditions );
+			$dict = $this->dictionary();
 			for ($i = 0; $i < count($data); $i++) {
-				$data[$i] = (object)$data[$i];
+				$dd = $data[$i];
+				foreach ($dict as $key => $ar) {
+					$val = isset($dd[$key]) ? $dd[$key] : null;
+					$dd["_" . $key] = $val;
+					$dd[$key] = isset($ar[$val]) ? $ar[$val] : $val;
+				}
+				$data[$i] = (object)$dd;
 			}
 		}
 		return $data;
 	}
 
-	public function find( $id, $ignoreAssociation = false )
+	public function find( $id )
 	{
 		$conn = $this->conn();
 		if( $conn ) {
@@ -444,8 +556,10 @@ class Table extends Base
 			$this->conditions( array($key => $id) );
 			$sql = "SELECT * FROM `" . $this->name . "`" . $this->conditions_sql;
 			$data = $conn->fetchOne($sql, MYSQLI_ASSOC, $this->conditions);
-			if( $data )
+			if( $data ) {
+				$this->associate( $data );
 				return (object)$data;
+			}
 		}
 		return null;
 	}
@@ -509,6 +623,7 @@ class Table extends Base
 		}
 		return null;
 	}
+
 }
 
 ?>

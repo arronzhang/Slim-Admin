@@ -198,6 +198,16 @@ class Base
 
 		return $child;
 	}
+
+	public static function array_pair( $ar, $k = 0, $v = 1 ) {
+		$tmp = array();
+		if( is_array( $ar ) ) {
+			foreach ($ar as $key => $val) {
+				$tmp[$val[$k]] = is_null( $v ) ? $val : $val[$v];
+			}
+		}
+		return $tmp;
+	}
 }
 
 ?>
