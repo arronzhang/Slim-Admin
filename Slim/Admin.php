@@ -45,10 +45,21 @@ class Admin extends \Slim\Slim
 	protected $data;
 
 	/**
+	 * @var bool
+	 */
+	protected $start = false;
+
+	/**
+	 * @var array
+	 */
+	protected $cache;
+
+	/**
 	 * Constructor
 	 * @param  array $settings Associative array of application settings
 	 */
 	public function __construct( $settings = array() ) {
+		$this->cache = array();
 		if( !isset( $settings["view"] ) ) {
 			$settings["view"] = new \Slim\Extras\Views\Twig();
 		}
@@ -106,6 +117,7 @@ class Admin extends \Slim\Slim
 	 * @return  \Slim\Admin\DB
 	 */
 	public function admin(){
+		$this->start = true;
 		$this->db->load();
 		$tables = $this->db->tables();
 		usort( $tables, function($a, $b) {
@@ -142,10 +154,11 @@ class Admin extends \Slim\Slim
 			}
 		}
 
+		$root = $this->request()->getRootUri();
 		for ($i = 0; $i < $len; $i++) {
 			$table = $tables[$i];
 			if( $table->permit("manage") ) {
-				$table->url = $this->urlFor( $table->name );
+				$table->url = $root . "/" . $table->name;
 			}
 		}
 
@@ -153,11 +166,29 @@ class Admin extends \Slim\Slim
 		$this->run();
 	}
 
+	protected function cache( $method, $object, $callable ){
+		$name = $method . "-" . $object->name;
+		if( !$this->start ) {
+			$this->cache[ $name ] = array( $object, $callable );
+			return true;
+		} else if( isset( $this->cache[$name] ) ) {
+			$args = $this->cache[$name];
+			unset( $this->cache[$name] );
+			call_user_func_array(array($this, $method), $args);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
 	/**
 	 * Router for index data
 	 */
 	public function index($table, $callable = null){
 		$table = $this->db->table( $table );
+		if( $this->cache(__FUNCTION__, $table, $callable) )
+			return $this;
+
 		$name = $table->name;
 		$app = $this;
 		$this->get("/" . $name, function() use ($table, $app, $callable) {
@@ -177,7 +208,8 @@ class Admin extends \Slim\Slim
 			} else {
 				$app->render("list.html.twig");
 			}
-		})->name( $name );
+		});
+		return $this;
 	}
 
 	/**
@@ -185,6 +217,9 @@ class Admin extends \Slim\Slim
 	 */
 	public function create($table, $callable = null){
 		$table = $this->db->table( $table );
+		if( $this->cache(__FUNCTION__, $table, $callable) )
+			return $this;
+
 		$name = $table->name;
 		$app = $this;
 		$this->get("/" . $name . "/new", function() use ($table, $app, $callable) {
@@ -197,7 +232,7 @@ class Admin extends \Slim\Slim
 			} else {
 				$app->render("new.html.twig");
 			}
-		})->name( $name . "_new" );
+		});
 	}
 
 	/**
@@ -205,6 +240,9 @@ class Admin extends \Slim\Slim
 	 */
 	public function save($table, $callable = null){
 		$table = $this->db->table( $table );
+		if( $this->cache(__FUNCTION__, $table, $callable) )
+			return $this;
+
 		$name = $table->name;
 		$app = $this;
 		$this->post("/" . $name . "/new", function() use ($table, $app, $callable) {
@@ -243,6 +281,9 @@ class Admin extends \Slim\Slim
 	 */
 	public function edit($table, $callable = null){
 		$table = $this->db->table( $table );
+		if( $this->cache(__FUNCTION__, $table, $callable) )
+			return $this;
+
 		$name = $table->name;
 		$app = $this;
 		$this->get("/" . $name . "/:id", function($id) use ($table, $app, $callable) {
@@ -261,7 +302,7 @@ class Admin extends \Slim\Slim
 			} else {
 				$app->render("edit.html.twig");
 			}
-		})->name( $name . "_edit" );
+		});
 	}
 
 	/**
@@ -269,6 +310,9 @@ class Admin extends \Slim\Slim
 	 */
 	public function update($table, $callable = null){
 		$table = $this->db->table( $table );
+		if( $this->cache(__FUNCTION__, $table, $callable) )
+			return $this;
+
 		$name = $table->name;
 		$app = $this;
 		$this->put("/" . $name . "/:id", function($id) use ($table, $app, $callable) {
@@ -311,6 +355,9 @@ class Admin extends \Slim\Slim
 	 */
 	public function del($table, $callable = null){
 		$table = $this->db->table( $table );
+		if( $this->cache(__FUNCTION__, $table, $callable) )
+			return $this;
+
 		$name = $table->name;
 		$app = $this;
 		$this->delete("/" . $name . "/:id", function($id) use ($table, $app, $callable) {
@@ -337,6 +384,9 @@ class Admin extends \Slim\Slim
 	 * Router for action
 	 */
 	public function action($action, $callable = null){
+		if( $this->cache(__FUNCTION__, $action, $callable) )
+			return $this;
+
 		$table = $action->table;
 		$name = $table->name;
 		$app = $this;
@@ -388,6 +438,9 @@ class Admin extends \Slim\Slim
 	}
 
 	public function multiAction($action, $callable = null){
+		if( $this->cache(__FUNCTION__, $action, $callable) )
+			return $this;
+
 		$table = $action->table;
 		$name = $table->name;
 		$app = $this;

@@ -67,10 +67,13 @@ class DB extends Base
 	 */
 	public function table( $name, $settings = array() )
 	{
+		$child = null;
 		if( func_num_args() < 3 && is_string($settings) ) {
 			$settings = array( "alias" => $settings );
+			$child = $this->child( $name, $settings );
+		} else {
+			$child = call_user_func_array(array($this, "child"), func_get_args());
 		}
-		$child = $this->child( $name, $settings );
 		if( !$child->config("db") ) {
 			$child->config("db", $this);
 		}

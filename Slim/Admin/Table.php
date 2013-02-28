@@ -156,8 +156,9 @@ class Table extends Base
 	{
 		if( func_num_args() < 3 && is_string($settings) ) {
 			$settings = array( "label" => $settings );
+			return $this->child( $name, $settings );
 		}
-		return $this->child( $name, $settings );
+		return call_user_func_array(array($this, "child"), func_get_args());
 	}
 
 	/**
