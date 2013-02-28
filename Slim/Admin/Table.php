@@ -81,6 +81,12 @@ class Table extends Base
 	public $url;
 
 	/**
+	 * @var ActionManager
+	 */
+	protected $actions;
+	protected $multi_actions;
+
+	/**
 	 *
 	 * @var mix
 	 */
@@ -124,6 +130,8 @@ class Table extends Base
 	{
 		$this->alias = ucfirst( $name );
 		$this->belong = array();
+		$this->actions = new ActionManager;
+		$this->multi_actions = new ActionManager;
 		parent::__construct( $name, $settings );
 		$this->childClass = "\\Slim\\Admin\\Column";
 	}
@@ -163,6 +171,26 @@ class Table extends Base
 	}
 
 	/**
+	 * Action
+	 *
+	 */
+	public function action($name, $settings, $callable) {
+		return $this->actions->action($this, $name, $settings, $callable);
+	}
+
+	public function actions() {
+		return $this->actions->actions();
+	}
+
+	public function multiAction($name, $settings, $callable) {
+		return $this->multi_actions->action($this, $name, $settings, $callable);
+	}
+
+	public function multiActions() {
+		return $this->multi_actions->actions();
+	}
+
+	/**
 	 * urlFor
 	 *
 	 * @param array $qs query options
@@ -176,8 +204,12 @@ class Table extends Base
 		if( !is_array($qs) ) {
 			if(is_object($qs)){
 				$key = $this->key();
-				if( $key )
+				if( $key ) {
 					$qs = $qs->$key;
+					if(is_array($qs) && !empty($qs)) {
+						$qs = $qs[0];
+					}
+				}
 			}
 			$path .= "/" . $qs;
 			$qs = array();
@@ -343,9 +375,9 @@ class Table extends Base
 				$name = $col->name;
 				$val = isset($dd->$name) ? $dd->$name : null;
 				if( is_string($col->formatter) ) {
-					$dd->$name = array($col->formatter, $val);
+					$dd->$name = array( $val, array($col->formatter, $val) );
 				}else if( is_callable($col->formatter) ) {
-					$dd->$name = call_user_func( $col->formatter, $this, $dd, $val );
+					$dd->$name = array( $val, call_user_func( $col->formatter, $this, $dd, $val ) );
 				}
 			}
 		}

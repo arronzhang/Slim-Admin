@@ -90,7 +90,7 @@ class Admin extends \Slim\Slim
 
 	/**
 	 * current table
-	 * @return  \Slim\Admin\Table
+	 * @return  mix
 	 */
 	public function data( $data = null ){
 		if( func_num_args() ) {
@@ -119,6 +119,14 @@ class Admin extends \Slim\Slim
 			$table = $tables[$i];
 			if( $table->permit("manage") ) {
 				$this->index( $table );
+				$actions = $table->actions();
+				for ($j = 0; $j < count($actions); $j++) {
+					$this->action( $actions[$j] );
+				}
+				$actions = $table->multiActions();
+				for ($j = 0; $j < count($actions); $j++) {
+					$this->multiAction( $actions[$j] );
+				}
 				if( $table->permit("create") ) {
 					$this->create( $table );
 					$this->save( $table );
@@ -130,6 +138,7 @@ class Admin extends \Slim\Slim
 				if( $table->permit("delete") ) {
 					$this->del( $table );
 				}
+
 			}
 		}
 
@@ -243,8 +252,9 @@ class Admin extends \Slim\Slim
 			if( !$data )
 				return $app->notFound();
 
-			$app->view()->setData( "_referrer", $app->request()->getReferrer() );
 			$app->data( $data );
+			$app->view()->setData( "_referrer", $app->request()->getReferrer() );
+			$app->view()->setData( "params", $data );
 
 			if( is_callable( $callable ) ) {
 				call_user_func( $callable );
@@ -272,15 +282,16 @@ class Admin extends \Slim\Slim
 			$ref = $req->post("_referrer");
 			$app->view()->setData( "_referrer", $ref );
 
-			$data = (object)array_merge( (array)$data, $req->post() );
 			$app->data( $data );
+			$params = (object)$req->post();
+			$app->view()->setData( "params", $params );
 
 			try{
-				$app->applyHookColumn( $data );
+				$app->applyHookColumn( $params );
 				if( is_callable( $callable ) ) {
 					call_user_func( $callable );
 				} else {
-					if( $table->update( $id, $data ) ) {
+					if( $table->update( $id, $params ) ) {
 						$app->flash("success", "更新成功!");
 						$app->redirect( empty($ref) ? $table->url : $ref );
 					} else {
@@ -322,6 +333,127 @@ class Admin extends \Slim\Slim
 		});
 	}
 
+	/**
+	 * Router for action
+	 */
+	public function action($action, $callable = null){
+		$table = $action->table;
+		$name = $table->name;
+		$app = $this;
+		$pattern = "/" . $name . "/:id/" . $action->name;
+		$this->get($pattern, function($id) use ($table, $action, $app, $callable) {
+			$table->load();
+			$app->table( $table );
+			$data = $table->find( $id );
+			if( !$data )
+				return $app->notFound();
+
+			$app->view()->setData( "_referrer", $app->request()->getReferrer() );
+			$app->view()->setData( "action", $action );
+			$app->view()->setData( "params", $data );
+			$app->data( $data );
+			$app->render("action.html.twig");
+		});
+		$this->post($pattern, function($id) use ($table, $action, $app, $callable) {
+			$table->load();
+			$app->table( $table );
+			$data = $table->find( $id );
+			if( !$data )
+				return $app->notFound();
+
+			$req = $app->request();
+			$ref = $req->post("_referrer");
+			$app->view()->setData( "_referrer", $ref );
+
+			$app->data( $data );
+			$params = (object)$req->post();
+			$app->view()->setData( "action", $action );
+			$app->view()->setData( "params", $params );
+
+			try{
+				if( is_callable( $action->callable ) ) {
+					call_user_func( $action->callable, $table, $data, $params );
+				}
+				if( is_callable( $callable ) ) {
+					call_user_func( $callable );
+				} else {
+					$app->flash("success", $action->alias . "成功!");
+					$app->redirect( empty($ref) ? $table->url : $ref );
+				}
+			} catch( \Exception $e ) {
+				$app->flashNow( "error", $e->getMessage() );
+				$app->render("action.html.twig");
+			}
+		});
+	}
+
+	public function multiAction($action, $callable = null){
+		$table = $action->table;
+		$name = $table->name;
+		$app = $this;
+		$pattern = "/" . $name . "/" . $action->name;
+		$this->get($pattern, function() use ($table, $action, $app, $callable) {
+			$table->load();
+			$app->table( $table );
+			$req = $app->request();
+			$ids = $req->get("ids");
+			if( !is_array($ids) || empty($ids) )
+				return $app->notFound();
+
+			$key = $table->key();
+			$data = $table
+				->conditions( array($key => $ids ) )
+				->all();
+
+			if( !$data )
+				return $app->notFound();
+
+			$app->view()->setData( "_referrer", $app->request()->getReferrer() );
+			$app->view()->setData( "action", $action );
+			$app->view()->setData( "params", (object)$req->get() );
+			$app->data( $data );
+			$app->render("multi-action.html.twig");
+		});
+		$this->post($pattern, function() use ($table, $action, $app, $callable) {
+			$table->load();
+			$app->table( $table );
+			$req = $app->request();
+			$ids = $req->post("ids");
+			if( !is_array($ids) || empty($ids) )
+				return $app->notFound();
+
+			$key = $table->key();
+			$data = $table
+				->conditions( array($key => $ids ) )
+				->all();
+
+			if( !$data )
+				return $app->notFound();
+
+			$ref = $req->post("_referrer");
+			$app->view()->setData( "_referrer", $ref );
+
+			$app->data( $data );
+			$params = (object)$req->post();
+			$app->view()->setData( "action", $action );
+			$app->view()->setData( "params", $params );
+
+			try{
+				if( is_callable( $action->callable ) ) {
+					call_user_func( $action->callable, $table, $data, $params );
+				}
+				if( is_callable( $callable ) ) {
+					call_user_func( $callable );
+				} else {
+					$app->flash("success", $action->alias . "成功!");
+					$app->redirect( empty($ref) ? $table->url : $ref );
+				}
+			} catch( \Exception $e ) {
+				$app->flashNow( "error", $e->getMessage() );
+				$app->render("multi-action.html.twig");
+			}
+		});
+	}
 
 	public function hookColumn() {
 		$app = $this;
@@ -410,7 +542,6 @@ class Admin extends \Slim\Slim
 	{
 		spl_autoload_register(__NAMESPACE__ . "\\Admin::autoload");
 	}
-
 }
 
 ?>

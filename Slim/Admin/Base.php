@@ -156,7 +156,9 @@ class Base
 				}
 			}
 
-			$this->permissions[$name] = $ar;
+			$this->permissions[$name] = isset( $this->permissions[$name] ) 
+				&& is_array( $this->permissions[$name] ) 
+				? array_merge($this->permissions[$name]) : $ar;
 		}
 	}
 
