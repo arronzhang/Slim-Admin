@@ -166,10 +166,11 @@ class Admin extends \Slim\Slim
 		$this->run();
 	}
 
-	protected function cache( $method, $object, $callable ){
-		$name = $method . "-" . $object->name;
+	protected function cache( $method, $args ){
+		$object = $args[0];
+		$name = $method . ($object instanceof Admin\Action ? ("-" . $object->table->name) : "" ) . "-" . $object->name;
 		if( !$this->start ) {
-			$this->cache[ $name ] = array( $object, $callable );
+			$this->cache[ $name ] = $args;
 			return true;
 		} else if( isset( $this->cache[$name] ) ) {
 			$args = $this->cache[$name];
@@ -186,7 +187,7 @@ class Admin extends \Slim\Slim
 	 */
 	public function index($table, $callable = null){
 		$table = $this->db->table( $table );
-		if( $this->cache(__FUNCTION__, $table, $callable) )
+		if( $this->cache(__FUNCTION__, func_get_args()) )
 			return $this;
 
 		$name = $table->name;
@@ -217,7 +218,7 @@ class Admin extends \Slim\Slim
 	 */
 	public function create($table, $callable = null){
 		$table = $this->db->table( $table );
-		if( $this->cache(__FUNCTION__, $table, $callable) )
+		if( $this->cache(__FUNCTION__, func_get_args()) )
 			return $this;
 
 		$name = $table->name;
@@ -240,7 +241,7 @@ class Admin extends \Slim\Slim
 	 */
 	public function save($table, $callable = null){
 		$table = $this->db->table( $table );
-		if( $this->cache(__FUNCTION__, $table, $callable) )
+		if( $this->cache(__FUNCTION__, func_get_args()) )
 			return $this;
 
 		$name = $table->name;
@@ -281,7 +282,7 @@ class Admin extends \Slim\Slim
 	 */
 	public function edit($table, $callable = null){
 		$table = $this->db->table( $table );
-		if( $this->cache(__FUNCTION__, $table, $callable) )
+		if( $this->cache(__FUNCTION__, func_get_args()) )
 			return $this;
 
 		$name = $table->name;
@@ -310,7 +311,7 @@ class Admin extends \Slim\Slim
 	 */
 	public function update($table, $callable = null){
 		$table = $this->db->table( $table );
-		if( $this->cache(__FUNCTION__, $table, $callable) )
+		if( $this->cache(__FUNCTION__, func_get_args()) )
 			return $this;
 
 		$name = $table->name;
@@ -355,7 +356,7 @@ class Admin extends \Slim\Slim
 	 */
 	public function del($table, $callable = null){
 		$table = $this->db->table( $table );
-		if( $this->cache(__FUNCTION__, $table, $callable) )
+		if( $this->cache(__FUNCTION__, func_get_args()) )
 			return $this;
 
 		$name = $table->name;
@@ -384,7 +385,7 @@ class Admin extends \Slim\Slim
 	 * Router for action
 	 */
 	public function action($action, $callable = null){
-		if( $this->cache(__FUNCTION__, $action, $callable) )
+		if( $this->cache(__FUNCTION__, func_get_args()) )
 			return $this;
 
 		$table = $action->table;
@@ -438,7 +439,7 @@ class Admin extends \Slim\Slim
 	}
 
 	public function multiAction($action, $callable = null){
-		if( $this->cache(__FUNCTION__, $action, $callable) )
+		if( $this->cache(__FUNCTION__, func_get_args()) )
 			return $this;
 
 		$table = $action->table;
