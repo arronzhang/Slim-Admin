@@ -68,14 +68,24 @@ class DB extends Base
 	public function table( $name, $settings = array() )
 	{
 		$child = null;
-		if( func_num_args() < 3 && is_string($settings) ) {
+		$callable = null;
+		$args = func_get_args();
+		$len = count( $args );
+		if( $len && is_callable($args[$len-1]) ){
+			$len--;
+			$callable = array_pop( $args );
+		}
+		if( $len < 3 && is_string($settings) ) {
 			$settings = array( "alias" => $settings );
 			$child = $this->child( $name, $settings );
 		} else {
-			$child = call_user_func_array(array($this, "child"), func_get_args());
+			$child = call_user_func_array(array($this, "child"), $args);
 		}
 		if( !$child->config("db") ) {
 			$child->config("db", $this);
+		}
+		if( $callable ) {
+			call_user_func($callable, $child);
 		}
 		return $child;
 	}
