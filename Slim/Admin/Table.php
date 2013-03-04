@@ -114,7 +114,9 @@ class Table extends Base
 	 * @var array
 	 */
 	protected $conditions = array();
+	protected $options = array();
 	protected $conditions_sql = "";
+	protected $search = null;
 
 	/**
 	 * @var array
@@ -253,7 +255,7 @@ class Table extends Base
 		return $this->urlFor( array(
 			"page" => $page,
 			"sort" => $this->sort(),
-		), $this->conditions() );
+		), $this->options() );
 	}
 
 	public function urlForSort( $name )
@@ -261,7 +263,7 @@ class Table extends Base
 		$col = $this->column( $name );
 		return $this->urlFor( array(
 			"sort" => $col->order == 1 ? "-" . $col->name : $col->name
-		), $this->conditions() );
+		), $this->options() );
 	}
 
 	/**
@@ -310,7 +312,7 @@ class Table extends Base
 
 	public function urlForFilter($name, $value)
 	{
-		return $this->urlFor($this->conditions, array($name => $value));
+		return $this->urlFor($this->options(), array($name => $value));
 	}
 
 	/**
@@ -531,6 +533,23 @@ class Table extends Base
 		return $this;
 	}
 
+	public function search()
+	{
+		if( !func_num_args() ) {
+			return $this->search ? $this->search[count($this->search) - 1] : null;
+		}
+		$this->search = func_get_args();
+		return $this;
+	}
+
+	public function options( $name = null )
+	{
+		if( !func_num_args() ) {
+			return $this->options;
+		}
+		return isset($this->options[$name]) ? $this->options[$name] : null;
+	}
+
 	public function conditions( $conditions = array() )
 	{
 		if( !func_num_args() ) {
@@ -549,7 +568,30 @@ class Table extends Base
 				$where[] = "(`" . $name . "` ".(is_array( $conditions[$name] ) ? "IN" : "=")." :" . $name . ")";
 			}
 		}
-		$this->conditions_sql = empty($where) ? "" : " WHERE " . implode(" AND ", $where);
+		$options = $ar;
+
+		$sql = array();
+		if( $this->search && !empty($conditions["q"])) {
+			$q = $conditions["q"];
+			$options["q"] = $q;
+			$q = "%" . $q . "%";
+			$count = count($this->search) - 1;
+			for ($i = 0; $i < $count; $i++) {
+				$name = $this->search[$i];
+				$ar[$name] = $q;
+				$sql[] = "`" . $name . "` like :" .$name;
+			}
+		}
+
+		$this->options = $options;
+
+		$c = array();
+		if( !empty($where) )
+			$c[] = implode(" AND ", $where);
+		if( !empty($sql) )
+			$c[] = "(" . implode(" OR ", $sql) . ")";
+
+		$this->conditions_sql = empty($c) ? "" : " WHERE " . implode(" AND ", $c);
 		$this->conditions = $ar;
 		return $this;
 	}
