@@ -192,7 +192,7 @@ class Admin extends \Slim\Slim
 
 		$name = $table->name;
 		$app = $this;
-		$this->get("/" . $name, function() use ($table, $app, $callable) {
+		$this->get("/" . $name . "(.:format)", function( $format = "html" ) use ($table, $app, $callable) {
 			$table->load();
 			$app->table( $table );
 			$req = $app->request();
@@ -205,9 +205,13 @@ class Admin extends \Slim\Slim
 			);
 
 			if( is_callable( $callable ) ) {
-				call_user_func( $callable );
+				call_user_func_array( $callable, func_get_args() );
 			} else {
-				$app->render("list.html.twig");
+				if( $format == "csv" ) {
+					$app->csv();
+				} else {
+					$app->render("list.html.twig");
+				}
 			}
 		});
 		return $this;
@@ -507,6 +511,14 @@ class Admin extends \Slim\Slim
 				$app->render("multi-action.html.twig");
 			}
 		});
+	}
+
+	public function csv(){
+		$res = $this->response();
+		$table = $this->table();
+		$res['Content-Type'] = "text/csv";
+		$res['Content-Disposition'] = "attachment;filename=".$table->name.".csv";
+		$this->halt( 200, $table->tocsv( $this->data() ) );
 	}
 
 	public function hookColumn() {

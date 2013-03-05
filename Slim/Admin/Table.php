@@ -239,12 +239,16 @@ class Table extends Base
 		$tmp = array();
 		foreach ($qs as $key => $val) {
 			if( !is_null($val) && $val !== "" ) {
+				if( $key == "format" ) {
+					$path .= "." . $val;
+				} else {
 				if( is_array( $val ) ) {
 					foreach ($val as $v) {
 						$tmp[] = $key . "[]=" . urlencode($v);
 					}
 				} else {
 					$tmp[] = $key . "=" . urlencode($val);
+				}
 				}
 			}
 		}
@@ -268,6 +272,15 @@ class Table extends Base
 		$col = $this->column( $name );
 		return $this->urlFor( array(
 			"sort" => $col->order == 1 ? "-" . $col->name : $col->name
+		), $this->options() );
+	}
+
+	public function urlForExport( $format = "csv" )
+	{
+		return $this->urlFor( array(
+			"format" => $format,
+			"sort" => $this->sort(),
+			"page" => $this->pager()->page,
 		), $this->options() );
 	}
 
@@ -786,6 +799,49 @@ class Table extends Base
 		return null;
 	}
 
+	public function tocsv( $data ) {
+		$columns = $this->columns();
+		$len = count( $data );
+		$len2 = count($columns);
+		$ddd = array();
+		$this->format($data);
+		$ar = array();
+		for ($j = 0; $j < $len2; $j++) {
+			$col = $columns[$j];
+			if( $col->permit("display") ) {
+				$ar[] = $col->label;
+			}
+		}
+		$ddd[] = implode(",", $ar);
+
+		for ($i = 0; $i < $len; $i++) {
+			$ar = array();
+			$dd = $data[$i];
+			for ($j = 0; $j < $len2; $j++) {
+				$col = $columns[$j];
+				$name = $col->name;
+				if( $col->permit("display") ) {
+					$d = isset($dd->$name) ? $dd->$name : "";
+					if( is_array($d) ){
+						$formatter = isset($d[1]) && is_array($d[1]) ? $d[1] : null;
+						if($formatter) {
+							if( $formatter[0] == "br" ){
+								$ar[] = implode(" ", $formatter[1] );
+							} else {
+								$ar[] = $d[0];
+							}
+						} else {
+							$ar[] = implode(" ", $d);
+						}
+					} else {
+						$ar[] = $d;
+					}
+				}
+			}
+			$ddd[] = implode(",", $ar);
+		}
+		return implode("\n", $ddd);
+	}
 }
 
 ?>
