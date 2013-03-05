@@ -121,7 +121,7 @@ class Table extends Base
 	/**
 	 * @var array
 	 */
-	protected $belong;
+	protected $filters;
 
 	/**
 	 * Constructor
@@ -131,7 +131,7 @@ class Table extends Base
 	public function __construct( $name, $settings = array() )
 	{
 		$this->alias = ucfirst( $name );
-		$this->belong = array();
+		$this->filters = array();
 		$this->actions = new ActionManager;
 		$this->multi_actions = new ActionManager;
 		parent::__construct( $name, $settings );
@@ -273,8 +273,8 @@ class Table extends Base
 
 	public function associate( $values = array() )
 	{
-		if( !empty( $this->belong ) ) {
-			foreach ( $this->belong as $key => $o ) {
+		if( !empty( $this->filters ) ) {
+			foreach ( $this->filters as $key => $o ) {
 				$data = array();
 				$table = $o["table"];
 				$scope = $o["scope"];
@@ -300,15 +300,6 @@ class Table extends Base
 	{
 	}
 
-	public function belong( $table, $locKey, $remoteDisplayKey, $scope = null, $scopekey = null )
-	{
-		$this->belong[ $locKey ] = array(
-			"table" => $table, 
-			"display" => $remoteDisplayKey, 
-			"scope" => $scope,
-			"scopekey" => $scopekey,
-		);
-	}
 
 	public function urlForFilter($name, $value)
 	{
@@ -318,6 +309,16 @@ class Table extends Base
 	/**
 	 * Filters
 	 */
+	public function filter( $table, $locKey, $remoteDisplayKey, $scope = null, $scopekey = null )
+	{
+		$this->filters[ $locKey ] = array(
+			"table" => $table, 
+			"display" => $remoteDisplayKey, 
+			"scope" => $scope,
+			"scopekey" => $scopekey,
+		);
+	}
+
 	public function filters()
 	{
 		$columns = $this->columns();
