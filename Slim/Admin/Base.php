@@ -205,7 +205,7 @@ class Base
 		$tmp = array();
 		if( is_array( $ar ) ) {
 			foreach ($ar as $key => $val) {
-				$tmp[$val[$k]] = is_null( $v ) ? $val : $val[$v];
+				$tmp[is_null( $v ) ? $val : $val[$k]] = is_null( $v ) ? $val : $val[$v];
 			}
 		}
 		return $tmp;

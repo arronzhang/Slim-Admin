@@ -113,6 +113,11 @@ class Table extends Base
 	/**
 	 * @var array
 	 */
+	protected $defaults = array();
+
+	/**
+	 * @var array
+	 */
 	protected $conditions = array();
 	protected $options = array();
 	protected $conditions_sql = "";
@@ -280,7 +285,7 @@ class Table extends Base
 				$scope = $o["scope"];
 				$scopekey = $o["scopekey"];
 				if( $scope ) {
-					if(isset($values[$scope]) && $values[$scope] !== "") {
+					if(isset($values[$scope]) && !is_array($values[$scope]) && $values[$scope] !== "") {
 						$table->load();
 						$k = $scopekey ? $scopekey : $scope;
 						$table->conditions( array( $k => $values[$scope] ) );
@@ -324,18 +329,28 @@ class Table extends Base
 		$columns = $this->columns();
 		$filters = array();
 		$len = count($columns);
+		$options = $this->options();
 		for ($i = 0; $i < $len; $i++) {
 			$col = $columns[$i];
 			if( $col->type == "select" && $col->permit("filter") ) {
 				$name = $col->name;
-				$value = isset($this->conditions[$name]) ? $this->conditions[$name] : "";
+				$value = isset($options[$name]) ? $options[$name] : "";
 				$all = $value === "";
-				$extra = array( array( $this->urlForFilter($name, ""), "所有" . $col->label, $all ) );
+				$defaults = isset($this->defaults[$name]) ? $this->defaults[$name] : array();
+				$defaults = is_array( $defaults ) ? $defaults : array( $defaults );
+				$def_len = count($defaults);
+				if( $def_len == 1 ) {
+					$extra = array();
+				} else {
+					$extra = array( array( $this->urlForFilter($name, ""), "所有" . $col->label, $all ) );
+				}
+				$defaults = self::array_pair( $defaults, null, null );
 				if(is_array($col->extra)) {
 					$len2 = count( $col->extra );
 					for ($j = 0; $j < $len2; $j++) {
 						$dd = $col->extra[$j];
-						$extra[] = array($this->urlForFilter($name, $dd[0]), $dd[1], !$all && $value == $dd[0]);
+						if( !$def_len || isset( $defaults[ $dd[0] ] ) )
+							$extra[] = array($this->urlForFilter($name, $dd[0]), $dd[1], !$all && $value == $dd[0]);
 					}
 				}
 				$filters[] = $extra;
@@ -551,25 +566,61 @@ class Table extends Base
 		return isset($this->options[$name]) ? $this->options[$name] : null;
 	}
 
+	/**
+	 * Default conditions
+	 *
+	 */
+	public function defaults( $ar = array() ) {
+		if( func_num_args() ) {
+			foreach ($ar as $key => $val) {
+				if(!is_null($val)){
+					$this->defaults[$key] = $val;
+				}
+			}
+			return $this;
+		}
+		return $this->defaults;
+	}
+
 	public function conditions( $conditions = array() )
 	{
 		if( !func_num_args() ) {
 			return $this->conditions;
 		}
+
+		$defaults = $this->defaults();
 		$conditions = array_merge( $this->conditions, $conditions );
 		$columns = $this->columns();
 		$len = count( $columns );
 		$where = array();
 		$ar = array();
+		$options = array();
 		for ($i = 0; $i < $len; $i++) {
 			$col = $columns[$i];
 			$name = $col->name;
 			if( isset( $conditions[$name] ) && $conditions[$name] !== "") {
-				$ar[$name] = $conditions[$name];
-				$where[] = "(`" . $name . "` ".(is_array( $conditions[$name] ) ? "IN" : "=")." :" . $name . ")";
+				$val = $conditions[$name];
+				$options[$name] = $val;
+				if( isset($defaults[$name]) ) {
+					$val2 = $defaults[$name];
+					if( is_array($val2) ){
+						if( !in_array($val, $val2) ) {
+							$val = $val2;
+							$options[$name] = "";
+						}
+					} else if( $val2 != $val ) {
+						$val = $val2;
+						$options[$name] = $val;
+					}
+				}
+				$ar[$name] = $val;
+				$where[] = "(`" . $name . "` ".(is_array( $val ) ? "IN" : "=")." :" . $name . ")";
+			} else if( isset($defaults[$name]) ) {
+				$val = $defaults[$name];
+				$ar[$name] = $val;
+				$where[] = "(`" . $name . "` ".(is_array( $val ) ? "IN" : "=")." :" . $name . ")";
 			}
 		}
-		$options = $ar;
 
 		$sql = array();
 		if( $this->search && !empty($conditions["q"])) {
