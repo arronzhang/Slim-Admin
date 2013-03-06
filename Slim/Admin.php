@@ -182,6 +182,25 @@ class Admin extends \Slim\Slim
 		}
 	}
 
+	public function renderTemplate( $method ) {
+		$name = $this->table()->name;
+		$path = $this->config("templates.path");
+		$temp = $name . "-" . $method . ".html.twig";
+
+		$file = $path . '/'. $temp;
+		if( file_exists($file) ) {
+			$this->render( $temp );
+			return;
+		}
+
+		$temp = $method . ".html.twig";
+		$file = $path . '/'. $temp;
+		if( file_exists($file) ) {
+			$this->render( $temp );
+			return;
+		}
+	}
+
 	/**
 	 * Router for index data
 	 */
@@ -208,13 +227,13 @@ class Admin extends \Slim\Slim
 			);
 
 			if( is_callable( $callable ) ) {
-				call_user_func_array( $callable, func_get_args() );
+				call_user_func( $callable );
+			} 
+
+			if( $format == "csv" ) {
+				$app->csv();
 			} else {
-				if( $format == "csv" ) {
-					$app->csv();
-				} else {
-					$app->render("list.html.twig");
-				}
+				$app->renderTemplate("list");
 			}
 		});
 		return $this;
@@ -237,9 +256,8 @@ class Admin extends \Slim\Slim
 			$app->data( (object)$params );
 			if( is_callable( $callable ) ) {
 				call_user_func( $callable );
-			} else {
-				$app->render("new.html.twig");
-			}
+			} 
+			$app->renderTemplate("new");
 		});
 	}
 
@@ -274,12 +292,12 @@ class Admin extends \Slim\Slim
 
 					} else {
 						$app->flashNow( "error", "新增失败" );
-						$app->render("new.html.twig");
+						$app->renderTemplate("new");
 					}
 				}
 			} catch( \Exception $e ) {
 				$app->flashNow( "error", $e->getMessage() );
-				$app->render("new.html.twig");
+				$app->renderTemplate("new");
 			}
 		});
 	}
@@ -307,9 +325,8 @@ class Admin extends \Slim\Slim
 
 			if( is_callable( $callable ) ) {
 				call_user_func( $callable );
-			} else {
-				$app->render("edit.html.twig");
-			}
+			} 
+			$app->renderTemplate("edit");
 		});
 	}
 
@@ -348,12 +365,12 @@ class Admin extends \Slim\Slim
 						$app->redirect( empty($ref) ? $table->url : $ref );
 					} else {
 						$app->flashNow( "error", "更新失败" );
-						$app->render("edit.html.twig");
+						$app->renderTemplate("edit");
 					}
 				}
 			} catch( \Exception $e ) {
 				$app->flashNow( "error", $e->getMessage() );
-				$app->render("edit.html.twig");
+				$app->renderTemplate("edit");
 			}
 		});
 	}
@@ -410,7 +427,7 @@ class Admin extends \Slim\Slim
 			$app->view()->setData( "action", $action );
 			$app->view()->setData( "params", $data );
 			$app->data( $data );
-			$app->render("action.html.twig");
+			$app->renderTemplate("action");
 		});
 		$this->post($pattern, function($id) use ($table, $action, $app, $callable) {
 			$table->load();
@@ -440,7 +457,7 @@ class Admin extends \Slim\Slim
 				}
 			} catch( \Exception $e ) {
 				$app->flashNow( "error", $e->getMessage() );
-				$app->render("action.html.twig");
+				$app->renderTemplate("action");
 			}
 		});
 	}
@@ -473,7 +490,7 @@ class Admin extends \Slim\Slim
 			$app->view()->setData( "action", $action );
 			$app->view()->setData( "params", (object)$req->get() );
 			$app->data( $data );
-			$app->render("multi-action.html.twig");
+			$app->renderTemplate("multi-action");
 		});
 		$this->post($pattern, function() use ($table, $action, $app, $callable) {
 			$table->load();
@@ -511,7 +528,7 @@ class Admin extends \Slim\Slim
 				}
 			} catch( \Exception $e ) {
 				$app->flashNow( "error", $e->getMessage() );
-				$app->render("multi-action.html.twig");
+				$app->renderTemplate("multi-action");
 			}
 		});
 	}
