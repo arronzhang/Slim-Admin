@@ -130,6 +130,7 @@ class Admin extends \Slim\Slim
 		for ($i = 0; $i < $len; $i++) {
 			$table = $tables[$i];
 			if( $table->permit("manage") ) {
+				$this->index( $table );
 				$actions = $table->actions();
 				for ($j = 0; $j < count($actions); $j++) {
 					$this->action( $actions[$j] );
@@ -138,7 +139,6 @@ class Admin extends \Slim\Slim
 				for ($j = 0; $j < count($actions); $j++) {
 					$this->multiAction( $actions[$j] );
 				}
-				$this->index( $table );
 				if( $table->permit("create") ) {
 					$this->create( $table );
 					$this->save( $table );
@@ -193,6 +193,9 @@ class Admin extends \Slim\Slim
 		$name = $table->name;
 		$app = $this;
 		$this->get("/" . $name . "(.:format)", function( $format = "html" ) use ($table, $app, $callable) {
+			if( $format != "csv" && $format != "html" ) {
+				return $app->pass();
+			}
 			$table->load();
 			$app->table( $table );
 			$req = $app->request();
