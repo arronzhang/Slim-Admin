@@ -130,7 +130,6 @@ class Admin extends \Slim\Slim
 		for ($i = 0; $i < $len; $i++) {
 			$table = $tables[$i];
 			if( $table->permit("manage") ) {
-				$this->index( $table );
 				$actions = $table->actions();
 				for ($j = 0; $j < count($actions); $j++) {
 					$this->action( $actions[$j] );
@@ -139,6 +138,7 @@ class Admin extends \Slim\Slim
 				for ($j = 0; $j < count($actions); $j++) {
 					$this->multiAction( $actions[$j] );
 				}
+				$this->index( $table );
 				if( $table->permit("create") ) {
 					$this->create( $table );
 					$this->save( $table );
