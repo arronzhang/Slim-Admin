@@ -385,7 +385,7 @@ class Table extends Base
 		$len = count($columns);
 
 		//set default format
-		if( $len && !$columns[0]->formatter ) {
+		if( $len && !$columns[0]->formatter && $this->permit("update") ) {
 			$columns[0]->formatter = function($table, $row, $val) {
 				return array("link", $val, $table->urlFor($row));
 			};
