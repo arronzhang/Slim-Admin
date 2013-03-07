@@ -812,7 +812,7 @@ class Table extends Base
 				$ar[] = $col->label;
 			}
 		}
-		$ddd[] = implode(",", $ar);
+		//$ddd[] = implode(",", $ar);
 
 		for ($i = 0; $i < $len; $i++) {
 			$ar = array();
@@ -826,7 +826,7 @@ class Table extends Base
 						$formatter = isset($d[1]) && is_array($d[1]) ? $d[1] : null;
 						if($formatter) {
 							if( $formatter[0] == "br" ){
-								$ar[] = implode(" ", $formatter[1] );
+								$ar[] = implode(",", $formatter[1] );
 							} else {
 								$ar[] = $d[0];
 							}
