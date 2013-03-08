@@ -104,6 +104,10 @@ class Table extends Base
 	protected $sort;
 	protected $sort_sql = "";
 
+	protected $groupby;
+	protected $groupby_sql = "";
+	protected $groupby_sql2 = "";
+
 	/**
 	 * @var Pager
 	 */
@@ -129,6 +133,12 @@ class Table extends Base
 	protected $filters;
 
 	/**
+	 * @var array
+	 */
+	protected $has_many;
+	protected $belong_to;
+
+	/**
 	 * Constructor
 	 *
 	 * @param mix $name The table name
@@ -137,6 +147,8 @@ class Table extends Base
 	{
 		$this->alias = ucfirst( $name );
 		$this->filters = array();
+		$this->has_many = array();
+		$this->belong_to = array();
 		$this->actions = new ActionManager;
 		$this->multi_actions = new ActionManager;
 		parent::__construct( $name, $settings );
@@ -288,8 +300,10 @@ class Table extends Base
 	 * Association
 	 *
 	 */
+	public function associate( $data ) {
+	}
 
-	public function associate( $values = array() )
+	public function fetchForFilter( $values = array() )
 	{
 		if( !empty( $this->filters ) ) {
 			foreach ( $this->filters as $key => $o ) {
@@ -314,10 +328,21 @@ class Table extends Base
 		return $this;
 	}
 
-	public function has( $table, $remoteKey, $locDisplayKey )
+	public function has( $table, $locKey, $remoteKey )
 	{
+		$this->has_many[ $locKey ] = array(
+			"table" => $table, 
+			"key" => $remoteKey, 
+		);
 	}
 
+	public function belong( $table, $locKey, $remoteKey )
+	{
+		$this->belong_to[ $locKey ] = array(
+			"table" => $table, 
+			"key" => $remoteKey, 
+		);
+	}
 
 	public function urlForFilter($name, $value)
 	{
@@ -553,6 +578,15 @@ class Table extends Base
 		return $this;
 	}
 
+	public function groupby( $name = null )
+	{
+		if( !func_num_args() ) {
+			return $this->groupby;
+		}
+		$this->groupby = $name;
+		$this->groupby_sql = is_null($name) ? "" : "( SELECT *,count(`".$name."`) `".$name."_num` FROM `".$this->name."` GROUP BY `".$name."` order by `".$this->key()."` desc ) `".$this->name."`";
+	}
+
 	public function pager( $page = null )
 	{
 		if( !func_num_args() ) {
@@ -562,7 +596,7 @@ class Table extends Base
 		$num = 0;
 		if( $conn ) {
 			$num = $conn->fetchValue("SELECT count(*) FROM " 
-				. $this->name . $this->conditions_sql, $this->conditions);
+				. (empty( $this->groupby_sql ) ? "`".$this->name."`" : $this->groupby_sql ) . $this->conditions_sql, $this->conditions);
 		}
 		$this->pager = new Pager( $page, $num, $this->config("per_size") );
 		$this->pager_sql = " LIMIT :__size OFFSET :__offset";
@@ -700,8 +734,9 @@ class Table extends Base
 		return $data;
 	}
 
-	public function all()
+	public function all( $page = 1 )
 	{
+		$this->pager( $page );
 		$conn = $this->conn();
 		$data = array();
 		if( $conn ) {
@@ -711,9 +746,9 @@ class Table extends Base
 				$conditions["__size"] = $pager->per_size;
 				$conditions["__offset"] = $pager->offset;
 			}
-			$sql = "SELECT * FROM `" . $this->name . "`" . $this->conditions_sql . $this->sort_sql . $this->pager_sql;
+			$sql = "SELECT * FROM " . (empty( $this->groupby_sql ) ? "`".$this->name."`" : $this->groupby_sql ) . $this->conditions_sql . $this->sort_sql . $this->pager_sql;
 			$data = $conn->fetchAll($sql, MYSQLI_ASSOC, $conditions);
-			$this->associate( $this->conditions );
+			$this->fetchForFilter( $this->conditions );
 			$dict = $this->dictionary();
 			for ($i = 0; $i < count($data); $i++) {
 				$dd = $data[$i];
@@ -738,7 +773,7 @@ class Table extends Base
 			$sql = "SELECT * FROM `" . $this->name . "`" . $this->conditions_sql;
 			$data = $conn->fetchOne($sql, MYSQLI_ASSOC, $this->conditions);
 			if( $data ) {
-				$this->associate( $data );
+				$this->fetchForFilter( $data );
 				return (object)$data;
 			}
 		}
