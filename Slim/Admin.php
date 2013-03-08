@@ -219,16 +219,16 @@ class Admin extends \Slim\Slim
 			$app->table( $table );
 			$req = $app->request();
 
-			$app->data( 
-				$table->conditions( $req->get() )
-				->sort( $req->get("sort") )
-				->pager( $req->get("page") )
-				->all() 
-			);
+			$table->conditions( $req->get() )
+				->sort( $req->get("sort") );
 
 			if( is_callable( $callable ) ) {
 				call_user_func( $callable );
-			} 
+			} else {
+				$app->data( 
+					$table->all( $req->get("page") ) 
+				);
+			}	
 
 			if( $format == "csv" ) {
 				$app->csv();
