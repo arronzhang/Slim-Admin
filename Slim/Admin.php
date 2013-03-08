@@ -539,7 +539,7 @@ class Admin extends \Slim\Slim
 		$res['Content-Type'] = "application/vnd.ms-excel";
 		$res['Content-Disposition'] = "attachment;filename=".$table->name.".xls";
 		$data = $table->tocsv( $this->data() );
-		$data = mb_convert_encoding( $data, "gbk", "utf-8" );
+		$data = \mb_convert_encoding( $data, "gbk", "utf-8" );
 		$this->halt( 200, $data );
 	}
 
