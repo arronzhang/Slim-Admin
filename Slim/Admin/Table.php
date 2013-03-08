@@ -386,7 +386,7 @@ class Table extends Base
 
 		//set default format
 		if( $len && !$columns[0]->formatter && $this->permit("update") ) {
-			$columns[0]->formatter = function($table, $row, $val) {
+			$columns[0]->formatter = function($table, $col, $row, $val) {
 				return array("link", $val, $table->urlFor($row));
 			};
 		}
@@ -394,6 +394,12 @@ class Table extends Base
 		$cols = array();
 		for ($i = 0; $i < $len; $i++) {
 			$col = $columns[$i];
+			if( $col->type == "select" && !$col->formatter ) {
+				$col->formatter = function($table, $col, $row, $val) {
+					$k = "_" . $col->name;
+					return isset($row->$k) ? $row->$k : $val;
+				};
+			}
 			if( $col->formatter ) {
 				$cols[] = $col;
 			}
@@ -409,7 +415,8 @@ class Table extends Base
 				if( is_string($col->formatter) ) {
 					$dd->$name = array( $val, array($col->formatter, $val) );
 				}else if( is_callable($col->formatter) ) {
-					$dd->$name = array( $val, call_user_func( $col->formatter, $this, $dd, $val ) );
+					$res = call_user_func( $col->formatter, $this, $col, $dd, $val );
+					$dd->$name = is_array( $res ) ? array( $val, $res ) : $res;
 				}
 			}
 		}
@@ -712,8 +719,7 @@ class Table extends Base
 				$dd = $data[$i];
 				foreach ($dict as $key => $ar) {
 					$val = isset($dd[$key]) ? $dd[$key] : null;
-					$dd["_" . $key] = $val;
-					$dd[$key] = isset($ar[$val]) ? $ar[$val] : $val;
+					$dd["_" . $key] = isset($ar[$val]) ? $ar[$val] : $val;
 				}
 				$data[$i] = (object)$dd;
 			}
