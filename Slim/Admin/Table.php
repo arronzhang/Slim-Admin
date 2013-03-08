@@ -906,25 +906,18 @@ class Table extends Base
 			for ($j = 0; $j < $len2; $j++) {
 				$col = $columns[$j];
 				$name = $col->name;
+				$fname = $col->fname();
 				if( $col->permit("display") ) {
 					$d = isset($dd->$name) ? $dd->$name : "";
-					if( is_array($d) ){
-						$formatter = isset($d[1]) && is_array($d[1]) ? $d[1] : null;
-						if($formatter) {
-							if( $formatter[0] == "br" ){
-								$ar[] = implode(",", $formatter[1] );
-							} else {
-								$ar[] = $d[0];
-							}
-						} else {
-							$ar[] = implode(" ", $d);
-						}
+					$formatter = isset($dd->$fname) ? $dd->$fname : null;
+					if($formatter && $formatter[0] == "br") {
+						$ar[] = implode( "\t ", $formatter[1] );
 					} else {
 						$ar[] = $d;
 					}
 				}
 			}
-			$ddd[] = implode(",", $ar);
+			$ddd[] = implode("\t ", $ar);
 		}
 		return implode("\n", $ddd);
 	}

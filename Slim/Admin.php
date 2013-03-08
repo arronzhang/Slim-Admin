@@ -533,12 +533,14 @@ class Admin extends \Slim\Slim
 		});
 	}
 
-	public function csv(){
+	public function csv($encode = null) {
 		$res = $this->response();
 		$table = $this->table();
-		$res['Content-Type'] = "text/csv";
-		$res['Content-Disposition'] = "attachment;filename=".$table->name.".csv";
-		$this->halt( 200, $table->tocsv( $this->data() ) );
+		$res['Content-Type'] = "application/vnd.ms-excel";
+		$res['Content-Disposition'] = "attachment;filename=".$table->name.".xls";
+		$data = $table->tocsv( $this->data() );
+		$data = mb_convert_encoding( $data, "gbk", "utf-8" );
+		$this->halt( 200, $data );
 	}
 
 	public function hookColumn() {
