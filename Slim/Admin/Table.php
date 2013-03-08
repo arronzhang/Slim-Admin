@@ -256,10 +256,10 @@ class Table extends Base
 				} else {
 				if( is_array( $val ) ) {
 					foreach ($val as $v) {
-						$tmp[] = $key . "[]=" . urlencode($v);
+						$tmp[] = $key . "[]=" . urlencode((string)$v);
 					}
 				} else {
-					$tmp[] = $key . "=" . urlencode($val);
+					$tmp[] = $key . "=" . urlencode((string)$val);
 				}
 				}
 			}
@@ -301,6 +301,28 @@ class Table extends Base
 	 *
 	 */
 	public function associate( $data ) {
+		if( empty( $data ) ) {
+			return $this;
+		}
+		if( !empty( $this->has_many ) ) {
+			$key = $this->key();
+			$ids = array_map(function($v) use ($key) {
+				return $v->$key;
+			}, $data);
+			foreach ( $this->has_many as $kkk => $o ) {
+				$dd = $o["table"]->countBy($o["key"], $ids);
+				$len = count($data);
+				for ($i = 0; $i < $len; $i++) {
+					$d = $data[$i];
+					$d->$kkk = isset($dd[ $d->$key ]) ? $dd[ $d->$key ] : 0;
+				}
+			}
+		}
+		if( !empty( $this->belong_to ) ) {
+			foreach ( $this->belong_to as $key => $o ) {
+			}
+		}
+		return $this;
 	}
 
 	public function fetchForFilter( $values = array() )
@@ -328,9 +350,9 @@ class Table extends Base
 		return $this;
 	}
 
-	public function has( $table, $locKey, $remoteKey )
+	public function has( $table, $locDisplay, $remoteKey )
 	{
-		$this->has_many[ $locKey ] = array(
+		$this->has_many[ $locDisplay ] = array(
 			"table" => $table, 
 			"key" => $remoteKey, 
 		);
@@ -415,6 +437,18 @@ class Table extends Base
 				return array("link", $val, $table->urlFor($row));
 			};
 		}
+		//set default format for has many
+		foreach ($this->has_many as $key => $o) {
+			$col = $this->column($key);
+			if(!$col->formatter) {
+				$ttt = $o["table"];
+				$kkk = $o["key"];
+				$col->formatter = function($table, $col, $row, $val) use( $ttt, $kkk ) {
+					$key = $table->key();
+					return array("link", $val, $ttt->urlFor(array($kkk => $row->$key)));
+				};
+			}
+		}
 
 		$cols = array();
 		for ($i = 0; $i < $len; $i++) {
@@ -436,12 +470,12 @@ class Table extends Base
 			for ($j = 0; $j < $len2; $j++) {
 				$col = $cols[$j];
 				$name = $col->name;
+				$fname = $col->fname();
 				$val = isset($dd->$name) ? $dd->$name : null;
 				if( is_string($col->formatter) ) {
-					$dd->$name = array( $val, array($col->formatter, $val) );
+					$dd->$fname = array($col->formatter, $val);
 				}else if( is_callable($col->formatter) ) {
-					$res = call_user_func( $col->formatter, $this, $col, $dd, $val );
-					$dd->$name = is_array( $res ) ? array( $val, $res ) : $res;
+					$dd->$fname = call_user_func( $col->formatter, $this, $col, $dd, $val );
 				}
 			}
 		}
@@ -706,6 +740,16 @@ class Table extends Base
 	 * Query
 	 *
 	 */
+	public function countBy( $key, $ids )
+	{
+		$conn = $this->conn();
+		$data = array();
+		if( $conn ) {
+			$this->conditions(array( $key => $ids ) );
+			$data = $conn->fetchPairs( "SELECT `".$key."`, count(`".$key."`) `num` FROM `".$this->name."`" . $this->conditions_sql . " GROUP BY `".$key."` " . $this->sort_sql, $this->conditions);
+		}
+		return $data;
+	}
 
 	public function pair( $display )
 	{
@@ -758,6 +802,7 @@ class Table extends Base
 				}
 				$data[$i] = (object)$dd;
 			}
+			$this->associate( $data );
 		}
 		return $data;
 	}

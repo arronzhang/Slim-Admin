@@ -92,6 +92,10 @@ class Column extends Base
 		return $this->config("key");
 	}
 
+	public function fname(){
+		return "__" . $this->config("name");
+	}
+
 	/**
 	 * Format data
 	 *
