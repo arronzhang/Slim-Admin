@@ -899,6 +899,7 @@ class Table extends Base
 			}
 		}
 		//$ddd[] = implode(",", $ar);
+		$header = array();
 
 		for ($i = 0; $i < $len; $i++) {
 			$ar = array();
@@ -907,18 +908,28 @@ class Table extends Base
 				$col = $columns[$j];
 				$name = $col->name;
 				$fname = $col->fname();
+				$sname = "_" . $name;
 				if( $col->permit("display") ) {
+					if( $i == 0 )
+						$header[] = $col->label;
 					$d = isset($dd->$name) ? $dd->$name : "";
 					$formatter = isset($dd->$fname) ? $dd->$fname : null;
 					if($formatter && $formatter[0] == "br") {
+						if( $i == 0 ) {
+							$lll = count($formatter[1]) - 1;
+							while( $lll-- ){
+								$header[] = "";
+							}
+						}
 						$ar[] = implode( "\t ", $formatter[1] );
 					} else {
-						$ar[] = $d;
+						$ar[] = isset($dd->$sname) ? $dd->$sname : $d;
 					}
 				}
 			}
 			$ddd[] = implode("\t ", $ar);
 		}
+		array_unshift($ddd, implode("\t ", $header));
 		return implode("\n", $ddd);
 	}
 }
