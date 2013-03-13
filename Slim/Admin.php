@@ -212,7 +212,7 @@ class Admin extends \Slim\Slim
 		$name = $table->name;
 		$app = $this;
 		$this->get("/" . $name . "(.:format)", function( $format = "html" ) use ($table, $app, $callable) {
-			if( $format != "csv" && $format != "html" ) {
+			if( $format != "xls" && $format != "html" ) {
 				return $app->pass();
 			}
 			$table->load();
@@ -230,8 +230,8 @@ class Admin extends \Slim\Slim
 				);
 			}	
 
-			if( $format == "csv" ) {
-				$app->csv();
+			if( $format == "xls" ) {
+				$app->xls();
 			} else {
 				$app->renderTemplate("list");
 			}
@@ -533,12 +533,12 @@ class Admin extends \Slim\Slim
 		});
 	}
 
-	public function csv($encode = null) {
+	public function xls($encode = null) {
 		$res = $this->response();
 		$table = $this->table();
 		$res['Content-Type'] = "application/vnd.ms-excel";
 		$res['Content-Disposition'] = "attachment;filename=".$table->name.".xls";
-		$data = $table->tocsv( $this->data() );
+		$data = $table->toxls( $this->data() );
 		$data = \mb_convert_encoding( $data, "GBK", "UTF-8" );
 		$this->halt( 200, $data );
 	}

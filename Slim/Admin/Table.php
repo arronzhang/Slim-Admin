@@ -287,7 +287,7 @@ class Table extends Base
 		), $this->options() );
 	}
 
-	public function urlForExport( $format = "csv" )
+	public function urlForExport( $format = "xls" )
 	{
 		return $this->urlFor( array(
 			"format" => $format,
@@ -885,7 +885,7 @@ class Table extends Base
 		return null;
 	}
 
-	public function tocsv( $data ) {
+	public function toxls( $data ) {
 		$columns = $this->columns();
 		$len = count( $data );
 		$len2 = count($columns);
@@ -894,12 +894,11 @@ class Table extends Base
 		$ar = array();
 		for ($j = 0; $j < $len2; $j++) {
 			$col = $columns[$j];
-			if( $col->permit("display") ) {
+			if( $col->permit("export") ) {
 				$ar[] = $col->label;
 			}
 		}
-		//$ddd[] = implode(",", $ar);
-		$header = array();
+		$ddd[] = implode("\t ", $ar);
 
 		for ($i = 0; $i < $len; $i++) {
 			$ar = array();
@@ -909,27 +908,13 @@ class Table extends Base
 				$name = $col->name;
 				$fname = $col->fname();
 				$sname = "_" . $name;
-				if( $col->permit("display") ) {
-					if( $i == 0 )
-						$header[] = $col->label;
+				if( $col->permit("export") ) {
 					$d = isset($dd->$name) ? $dd->$name : "";
-					$formatter = isset($dd->$fname) ? $dd->$fname : null;
-					if($formatter && $formatter[0] == "br") {
-						if( $i == 0 ) {
-							$lll = count($formatter[1]) - 1;
-							while( $lll-- ){
-								$header[] = "";
-							}
-						}
-						$ar[] = implode( "\t ", $formatter[1] );
-					} else {
-						$ar[] = isset($dd->$sname) ? $dd->$sname : $d;
-					}
+					$ar[] = isset($dd->$sname) ? $dd->$sname : $d;
 				}
 			}
 			$ddd[] = implode("\t ", $ar);
 		}
-		array_unshift($ddd, implode("\t ", $header));
 		return implode("\n", $ddd);
 	}
 }
