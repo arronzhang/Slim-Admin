@@ -308,18 +308,38 @@ class Table extends Base
 			$key = $this->key();
 			$ids = array_map(function($v) use ($key) {
 				return $v->$key;
-			}, $data);
-			foreach ( $this->has_many as $kkk => $o ) {
-				$dd = $o["table"]->countBy($o["key"], $ids);
-				$len = count($data);
-				for ($i = 0; $i < $len; $i++) {
-					$d = $data[$i];
-					$d->$kkk = isset($dd[ $d->$key ]) ? $dd[ $d->$key ] : 0;
+			}, array_filter($data, function($v) use ($key) { 
+				return $v->$key; 
+			}));
+			if( count( $ids ) ) {
+				foreach ( $this->has_many as $kkk => $o ) {
+					$dd = $o["table"]->countBy($o["key"], $ids);
+					$len = count($data);
+					for ($i = 0; $i < $len; $i++) {
+						$d = $data[$i];
+						$d->$kkk = isset($dd[ $d->$key ]) ? $dd[ $d->$key ] : 0;
+					}
 				}
 			}
 		}
 		if( !empty( $this->belong_to ) ) {
-			foreach ( $this->belong_to as $key => $o ) {
+
+			foreach ( $this->belong_to as $kkk => $o ) {
+				$key = $kkk;
+				$dkey = "_" . $kkk;
+				$ids = array_map(function($v) use ($key) {
+					return $v->$key;
+				}, array_filter($data, function($v) use ($key) { 
+					return $v->$key; 
+				}));
+				if( count( $ids ) ) {
+					$dd = $o["table"]->pair($o["key"], $ids, true);
+					$len = count($data);
+					for ($i = 0; $i < $len; $i++) {
+						$d = $data[$i];
+						$d->$dkey = isset($dd[ $d->$key ]) ? $dd[ $d->$key ] : "";
+					}
+				}
 			}
 		}
 		return $this;
@@ -358,11 +378,11 @@ class Table extends Base
 		);
 	}
 
-	public function belong( $table, $locKey, $remoteKey )
+	public function belong( $table, $locKey, $remoteDisplay )
 	{
 		$this->belong_to[ $locKey ] = array(
 			"table" => $table, 
-			"key" => $remoteKey, 
+			"key" => $remoteDisplay, 
 		);
 	}
 
@@ -446,6 +466,19 @@ class Table extends Base
 				$col->formatter = function($table, $col, $row, $val) use( $ttt, $kkk ) {
 					$key = $table->key();
 					return array("link", $val, $ttt->urlFor(array($kkk => $row->$key)));
+				};
+			}
+		}
+
+		//set default format for belong
+		foreach ($this->belong_to as $key => $o) {
+			$col = $this->column($key);
+			if(!$col->formatter) {
+				$ttt = $o["table"];
+				$kkk = "_" . $key;
+				$col->formatter = function($table, $col, $row, $val) use( $ttt, $kkk ) {
+					$key = $table->key();
+					return array("link", empty($row->$kkk) ? $val : $row->$kkk, $ttt->urlFor((object)array($key => $val)));
 				};
 			}
 		}
@@ -751,14 +784,21 @@ class Table extends Base
 		return $data;
 	}
 
-	public function pair( $display )
+	public function pair( $display, $ids = null, $pair = false )
 	{
 		$conn = $this->conn();
 		$data = array();
 		if( $conn ) {
 			$key = $this->key();
 			if( $key ) {
-				$data = $conn->fetchAll( "SELECT `".$key."`,`".$display."` FROM `".$this->name."`" . $this->conditions_sql . $this->sort_sql, MYSQLI_NUM, $this->conditions);
+				if( $ids ) {
+					$this->conditions(array( $key => $ids ) );
+				}
+				if( $pair ) {
+					$data = $conn->fetchPairs( "SELECT `".$key."`,`".$display."` FROM `".$this->name."`" . $this->conditions_sql . $this->sort_sql, $this->conditions);
+				} else {
+					$data = $conn->fetchAll( "SELECT `".$key."`,`".$display."` FROM `".$this->name."`" . $this->conditions_sql . $this->sort_sql, MYSQLI_NUM, $this->conditions);
+				}
 			}
 		}
 		return $data;
