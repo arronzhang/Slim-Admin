@@ -251,7 +251,7 @@ class Admin extends \Slim\Slim
 		$app = $this;
 		$this->get("/" . $name . "/new", function() use ($table, $app, $callable) {
 			$params = $app->request()->get();
-			$table->load()->associate( $params );
+			$table->load()->fetchForFilter( $params );
 			$app->table( $table );
 			$app->data( (object)$params );
 			if( is_callable( $callable ) ) {
@@ -273,7 +273,7 @@ class Admin extends \Slim\Slim
 		$app = $this;
 		$this->post("/" . $name . "/new", function() use ($table, $app, $callable) {
 			$params = $app->request()->post();
-			$table->load()->associate( $params );
+			$table->load()->fetchForFilter( $params );
 			$app->table( $table );
 			$data = (object)$params;
 			$app->data( $data );
@@ -548,7 +548,10 @@ class Admin extends \Slim\Slim
 		$this->hook("admin.column.image", function ( $option ) use ($app) {
 			$column = $option[0];
 			$data = $option[1];
-			$storage = new \Upload\Storage\FileSystem( $app->config("image.path") );
+			$path = $app->config("image.path");
+			$path = rtrim($path, '/') . DIRECTORY_SEPARATOR;
+
+			$storage = new \Upload\Storage\FileSystem( $path );
 			$name = $column->name;
 			if( isset($_FILES[$name]) ){
 				$file = new \Upload\File( $name, $storage );
@@ -560,7 +563,20 @@ class Admin extends \Slim\Slim
 						),
 					));
 					$file->upload();
-					$data->$name = $file->getNameWithExtension();
+					$fileName = $file->getNameWithExtension();
+					$data->$name = $fileName;
+					$extra = $column->extra;
+					if( is_array( $extra ) ) {
+						if( isset($extra["quality"]) ){
+							Admin::compressImage( $path, $fileName, $extra["quality"] );
+						}
+						if( isset($extra["box"]) ){
+							$box = $extra["box"];
+							for ($k = 0; $k < count($box); $k++) {
+								Admin::thumbnailImage( $path, $fileName, $box[$k] );
+							}
+						}
+					}
 				}
 			}
 		});
@@ -629,6 +645,41 @@ class Admin extends \Slim\Slim
 	public static function registerAutoloader()
 	{
 		spl_autoload_register(__NAMESPACE__ . "\\Admin::autoload");
+	}
+
+	public static function mkdirs($dir)
+	{
+		if(!is_dir($dir))
+		{
+			$oldumask = umask(0);
+			$res = mkdir($dir,0777, true);
+			umask($oldumask);
+			return $res;
+		}
+		return true;
+	}
+
+	public static function compressImage($path, $name, $quality = 80){
+		$from = $path . $name;
+		$to = $path . "c" . DIRECTORY_SEPARATOR . $name;
+		$imagine = new \Imagine\Imagick\Imagine();
+		if( file_exists($from) ) {
+			self::mkdirs(dirname($to));
+			$image = $imagine->open($from)->save($to, array('quality' => $quality));
+		}
+	}
+
+	public static function thumbnailImage($path, $name, $size){
+		$from = $path . $name;
+		$to = $path . $size[0] . "x" . $size[1] . DIRECTORY_SEPARATOR . $name;
+		$imagine = new \Imagine\Imagick\Imagine();
+		if( file_exists( $from ) ) {
+			self::mkdirs(dirname($to));
+			$image = $imagine->open( $from );
+			$size    = new \Imagine\Image\Box($size[0], $size[1]);
+			$mode    = \Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND;
+			$image->thumbnail($size, $mode)->save( $to );
+		}
 	}
 }
 
