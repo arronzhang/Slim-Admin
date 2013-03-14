@@ -651,7 +651,7 @@ class Table extends Base
 			return $this->groupby;
 		}
 		$this->groupby = $name;
-		$this->groupby_sql = is_null($name) ? "" : "( SELECT *,count(`".$name."`) `".$name."_num` FROM `".$this->name."` GROUP BY `".$name."` order by `".$this->key()."` desc ) `".$this->name."`";
+		$this->groupby_sql = is_null($name) ? "" : "( SELECT *,count(`".$name."`) `".$name."_num` FROM ( select * from `".$this->name."` ORDER BY `".$this->key()."` desc ) t1 GROUP BY `".$name."` ) `".$this->name."`";
 	}
 
 	public function pager( $page = null )
