@@ -491,6 +491,10 @@ class Table extends Base
 					$k = "_" . $col->name;
 					return isset($row->$k) ? $row->$k : $val;
 				};
+			} else if( $col->type == "bool" && !$col->formatter ) {
+				$col->formatter = function($table, $col, $row, $val) {
+					return $val ? "是" : "否";
+				};
 			}
 			if( $col->formatter ) {
 				$cols[] = $col;
