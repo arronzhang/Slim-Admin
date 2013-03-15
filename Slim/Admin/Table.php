@@ -305,14 +305,14 @@ class Table extends Base
 			return $this;
 		}
 		if( !empty( $this->has_many ) ) {
-			$key = $this->key();
-			$ids = array_map(function($v) use ($key) {
-				return $v->$key;
-			}, array_filter($data, function($v) use ($key) { 
-				return $v->$key; 
-			}));
-			if( count( $ids ) ) {
-				foreach ( $this->has_many as $kkk => $o ) {
+			foreach ( $this->has_many as $kkk => $o ) {
+				$key = $o["lockey"];
+				$ids = array_map(function($v) use ($key) {
+					return $v->$key;
+				}, array_filter($data, function($v) use ($key) { 
+					return $v->$key; 
+				}));
+				if( count( $ids ) ) {
 					$dd = $o["table"]->countBy($o["key"], $ids);
 					$len = count($data);
 					for ($i = 0; $i < $len; $i++) {
@@ -370,11 +370,12 @@ class Table extends Base
 		return $this;
 	}
 
-	public function has( $table, $locDisplay, $remoteKey )
+	public function has( $table, $locDisplay, $remoteKey, $locKey = null )
 	{
 		$this->has_many[ $locDisplay ] = array(
 			"table" => $table, 
 			"key" => $remoteKey, 
+			"lockey" => $locKey ? $locKey : $this->key(),
 		);
 	}
 
@@ -463,9 +464,9 @@ class Table extends Base
 			if(!$col->formatter) {
 				$ttt = $o["table"];
 				$kkk = $o["key"];
-				$col->formatter = function($table, $col, $row, $val) use( $ttt, $kkk ) {
-					$key = $table->key();
-					return array("link", $val, $ttt->urlFor(array($kkk => $row->$key)));
+				$lockey = $o["lockey"];
+				$col->formatter = function($table, $col, $row, $val) use( $ttt, $kkk, $lockey ) {
+					return array("link", $val, $ttt->urlFor(array($kkk => $row->$lockey)));
 				};
 			}
 		}
