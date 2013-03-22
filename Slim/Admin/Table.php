@@ -254,13 +254,13 @@ class Table extends Base
 				if( $key == "format" ) {
 					$path .= "." . $val;
 				} else {
-				if( is_array( $val ) ) {
-					foreach ($val as $v) {
-						$tmp[] = $key . "[]=" . urlencode((string)$v);
+					if( is_array( $val ) ) {
+						foreach ($val as $v) {
+							$tmp[] = $key . "[]=" . urlencode((string)$v);
+						}
+					} else {
+						$tmp[] = $key . "=" . urlencode((string)$val);
 					}
-				} else {
-					$tmp[] = $key . "=" . urlencode((string)$val);
-				}
 				}
 			}
 		}
@@ -345,8 +345,9 @@ class Table extends Base
 		return $this;
 	}
 
-	public function fetchForFilter( $values = array() )
+	public function fetchForFilter()
 	{
+		$values = $this->conditions();
 		if( !empty( $this->filters ) ) {
 			foreach ( $this->filters as $key => $o ) {
 				$data = array();
@@ -421,6 +422,7 @@ class Table extends Base
 				$defaults = is_array( $defaults ) ? $defaults : array( $defaults );
 				$def_len = count($defaults);
 				if( $def_len == 1 ) {
+					continue;
 					$extra = array();
 				} else {
 					$extra = array( array( $this->urlForFilter($name, ""), "所有" . $col->label, $all ) );
@@ -700,10 +702,16 @@ class Table extends Base
 		if( func_num_args() ) {
 			foreach ($ar as $key => $val) {
 				if(!is_null($val)){
-					if( is_array($val) && count($val) == 1 ) {
-						$val = $val[0];
+					if( is_array($val) ) {
+						$ll = count($val);
+						if( $ll != 0 ) {
+							if( $ll == 1 )
+								$val = $val[0];
+							$this->defaults[$key] = $val;
+						}
+					} else {
+						$this->defaults[$key] = $val;
 					}
-					$this->defaults[$key] = $val;
 				}
 			}
 			return $this;
@@ -840,7 +848,7 @@ class Table extends Base
 			}
 			$sql = "SELECT * FROM " . (empty( $this->groupby_sql ) ? "`".$this->name."`" : $this->groupby_sql ) . $this->conditions_sql . $this->sort_sql . $this->pager_sql;
 			$data = $conn->fetchAll($sql, MYSQLI_ASSOC, $conditions);
-			$this->fetchForFilter( $this->conditions );
+			$this->fetchForFilter();
 			$dict = $this->dictionary();
 			for ($i = 0; $i < count($data); $i++) {
 				$dd = $data[$i];
@@ -866,7 +874,8 @@ class Table extends Base
 			$sql = "SELECT * FROM `" . $this->name . "`" . $this->conditions_sql;
 			$data = $conn->fetchOne($sql, MYSQLI_ASSOC, $this->conditions);
 			if( $data ) {
-				$this->fetchForFilter( $data );
+				$this->conditions($data);
+				$this->fetchForFilter();
 				return (object)$data;
 			}
 		}
@@ -881,11 +890,18 @@ class Table extends Base
 			$values = is_object($values) ? (array)$values : $values;
 			$columns = $this->columns();
 			$len = count($columns);
+			$defaults = $this->defaults();
 			for ($i = 0; $i < $len; $i++) {
 				$col = $columns[$i];
 				$name = $col->name;
 				if( ($ignorePermission || $col->permit("create")) && !$col->key() && isset($values[$name]) ) {
 					$data[$name] = is_array($values[$name]) ? implode(",", $values[$name]) : $values[$name];
+				}
+				if( isset($defaults[$name]) ) {
+					$def = $defaults[$name];
+					$data[$name] = is_array($def) ? 
+						( isset($data[$name]) && in_array($data[$name], $def) ? $data[$name] : $def[0] ) 
+						: $def;
 				}
 			}
 			return $conn->save( $this->name, $data );
@@ -905,11 +921,18 @@ class Table extends Base
 			$values = is_object($values) ? (array)$values : $values;
 			$columns = $this->columns();
 			$len = count($columns);
+			$defaults = $this->defaults();
 			for ($i = 0; $i < $len; $i++) {
 				$col = $columns[$i];
 				$name = $col->name;
 				if( ($ignorePermission || $col->permit("update")) && !$col->key() && isset($values[$name]) ) {
 					$data[$name] = is_array($values[$name]) ? implode(",", $values[$name]) : $values[$name];
+					if( isset($defaults[$name]) ) {
+						$def = $defaults[$name];
+						$data[$name] = is_array($def) ? 
+							( in_array($data[$name], $def) ? $data[$name] : $def[0] ) 
+							: $def;
+					}
 				}
 			}
 			return $conn->save( $this->name, $data );

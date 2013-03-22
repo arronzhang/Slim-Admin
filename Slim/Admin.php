@@ -251,7 +251,7 @@ class Admin extends \Slim\Slim
 		$app = $this;
 		$this->get("/" . $name . "/new", function() use ($table, $app, $callable) {
 			$params = $app->request()->get();
-			$table->load()->fetchForFilter( $params );
+			$table->load()->conditions($params)->fetchForFilter();
 			$app->table( $table );
 			$app->data( (object)$params );
 			if( is_callable( $callable ) ) {
@@ -273,7 +273,7 @@ class Admin extends \Slim\Slim
 		$app = $this;
 		$this->post("/" . $name . "/new", function() use ($table, $app, $callable) {
 			$params = $app->request()->post();
-			$table->load()->fetchForFilter( $params );
+			$table->load()->conditions($params)->fetchForFilter();
 			$app->table( $table );
 			$data = (object)$params;
 			$app->data( $data );
