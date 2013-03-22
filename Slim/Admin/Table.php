@@ -700,6 +700,9 @@ class Table extends Base
 		if( func_num_args() ) {
 			foreach ($ar as $key => $val) {
 				if(!is_null($val)){
+					if( is_array($val) && count($val) == 1 ) {
+						$val = $val[0];
+					}
 					$this->defaults[$key] = $val;
 				}
 			}
