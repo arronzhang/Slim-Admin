@@ -182,10 +182,10 @@ class Admin extends \Slim\Slim
 		}
 	}
 
-	public function renderTemplate( $method ) {
+	public function renderTemplate( $method, $format = "html" ) {
 		$name = $this->table()->name;
 		$path = $this->config("templates.path");
-		$temp = $name . "-" . $method . ".html.twig";
+		$temp = $name . "-" . $method . ".".$format.".twig";
 
 		$file = $path . '/'. $temp;
 		if( file_exists($file) ) {
@@ -193,7 +193,7 @@ class Admin extends \Slim\Slim
 			return;
 		}
 
-		$temp = $method . ".html.twig";
+		$temp = $method . ".".$format.".twig";
 		$file = $path . '/'. $temp;
 		if( file_exists($file) ) {
 			$this->render( $temp );
@@ -212,7 +212,8 @@ class Admin extends \Slim\Slim
 		$name = $table->name;
 		$app = $this;
 		$this->get("/" . $name . "(.:format)", function( $format = "html" ) use ($table, $app, $callable) {
-			if( $format != "xls" && $format != "html" ) {
+			$formats = array("xls", "html", "ajax");
+			if( !in_array($format, $formats) ) {
 				return $app->pass();
 			}
 			$table->load();
@@ -233,7 +234,7 @@ class Admin extends \Slim\Slim
 			if( $format == "xls" ) {
 				$app->xls();
 			} else {
-				$app->renderTemplate("list");
+				$app->renderTemplate("list", $format);
 			}
 		});
 		return $this;
