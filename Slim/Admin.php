@@ -195,10 +195,10 @@ class Admin extends \Slim\Slim
 
 		$temp = $method . ".".$format.".twig";
 		$file = $path . '/'. $temp;
-		if( file_exists($file) ) {
+		//if( file_exists($file) ) {
 			$this->render( $temp );
 			return;
-		}
+		//}
 	}
 
 	/**
@@ -428,6 +428,9 @@ class Admin extends \Slim\Slim
 			$app->view()->setData( "action", $action );
 			$app->view()->setData( "params", $data );
 			$app->data( $data );
+			if( is_callable( $callable ) ) {
+				call_user_func( $callable );
+			}
 			$app->renderTemplate("action");
 		});
 		$this->post($pattern, function($id) use ($table, $action, $app, $callable) {

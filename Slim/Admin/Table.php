@@ -194,7 +194,7 @@ class Table extends Base
 	 * Action
 	 *
 	 */
-	public function action($name, $settings, $callable) {
+	public function action($name, $settings, $callable = null) {
 		return $this->actions->action($this, $name, $settings, $callable);
 	}
 
@@ -202,7 +202,7 @@ class Table extends Base
 		return $this->actions->actions();
 	}
 
-	public function multiAction($name, $settings, $callable) {
+	public function multiAction($name, $settings, $callable = null) {
 		return $this->multi_actions->action($this, $name, $settings, $callable);
 	}
 

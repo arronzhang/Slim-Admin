@@ -40,10 +40,7 @@ class ActionManager extends Base
 	/*
 	 * Action
 	 */
-	public function action($table, $name, $settings, $callable){
-		if( !is_callable($callable) ) {
-			throw new \InvalidArgumentException('$callable must a function');
-		}
+	public function action($table, $name, $settings, $callable = null){
 		if(is_string($settings) ) {
 			$settings = array( "alias" => $settings );
 		}
