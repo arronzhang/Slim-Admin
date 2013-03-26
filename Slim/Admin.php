@@ -212,6 +212,9 @@ class Admin extends \Slim\Slim
 		$name = $table->name;
 		$app = $this;
 		$this->get("/" . $name . "(.:format)", function( $format = "html" ) use ($table, $app, $callable) {
+			if( $app->request()->isAjax() ){
+				$format = "ajax";
+			}
 			$formats = array("xls", "html", "ajax");
 			if( !in_array($format, $formats) ) {
 				return $app->pass();
