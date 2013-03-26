@@ -363,6 +363,7 @@ class Admin extends \Slim\Slim
 				$app->applyHookColumn( $params );
 				if( is_callable( $callable ) ) {
 					call_user_func( $callable );
+					$app->redirect( empty($ref) ? $table->url : $ref );
 				} else {
 					if( $table->update( $id, $params ) ) {
 						$app->flash("success", "更新成功!");
