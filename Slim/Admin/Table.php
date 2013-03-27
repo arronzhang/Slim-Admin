@@ -981,7 +981,7 @@ class Table extends Base
 				$sname = "_" . $name;
 				if( $col->permit("export") ) {
 					$d = isset($dd->$name) ? $dd->$name : "";
-					$ar[] = isset($dd->$sname) ? $dd->$sname : $d;
+					$ar[] = str_replace(array("\n", "\r\n"), " ", isset($dd->$sname) ? $dd->$sname : $d);
 				}
 			}
 			$ddd[] = implode("\t ", $ar);
