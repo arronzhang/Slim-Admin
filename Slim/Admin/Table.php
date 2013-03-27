@@ -436,7 +436,9 @@ class Table extends Base
 							$extra[] = array($this->urlForFilter($name, $dd[0]), $dd[1], !$all && $value == $dd[0]);
 					}
 				}
-				$filters[] = $extra;
+				$filters[] = array( "select", $extra );
+			} elseif( $col->type == "date" && $col->permit("filter") ) {
+				$filters[] = array( "daterange", $col );
 			}
 		}
 		return $filters;
@@ -561,11 +563,14 @@ class Table extends Base
 							$extra = null;
 						}
 						$_type = $type;
+						$range = false;
 						$type = isset( Table::$types[$type] ) ? Table::$types[$type] : "text";
 						if( $_type == "tinyint" && $extra && $extra[0] == 1 ) {
 							$type = "bool";
 						}
-						if( $type == "number" ) {
+						if( $type == "date" ) {
+							$range = true;
+						} else if( $type == "number" ) {
 							$extra = $extra && isset($extra[0]) ? ($extra && isset($extra[1]) ? pow(0.1, $extra[1]) : 1) : "any";
 						} else if( $type == "select" || $type == "checkgroup" ) {
 							$extra = array_map( function( $v ){
@@ -577,6 +582,7 @@ class Table extends Base
 							"_type" => $_type,
 							"type" => $type,
 							"extra" => $extra,
+							"range" => $range,
 						) );
 					}, $res );
 					$this->cache = $res;
@@ -750,8 +756,15 @@ class Table extends Base
 						$options[$name] = $val;
 					}
 				}
+				$range = $col->config("range");
+				$range = $range === true ? " - " : $range;
+				$rval = $range ? ( is_array($val) ? $val : explode($range, $val) ) : null;
 				$ar[$name] = $val;
-				$where[] = "(`" . $name . "` ".(is_array( $val ) ? "IN" : "=")." :" . $name . ")";
+				if( $range && count($rval) > 1 ) {
+					$where[] = "(`" . $name . "` BETWEEN ".static::quote($rval[0])." and ".static::quote($rval[1]).")";
+				} else {
+					$where[] = "(`" . $name . "` ".(is_array( $val ) ? "IN" : "=")." :" . $name . ")";
+				}
 			} else if( isset($defaults[$name]) ) {
 				$val = $defaults[$name];
 				$ar[$name] = $val;
@@ -987,6 +1000,23 @@ class Table extends Base
 			$ddd[] = implode("\t ", $ar);
 		}
 		return implode("\n", $ddd);
+	}
+
+	/**
+	 * Quote a value so it can be savely used in a query.
+	 *
+	 * @param mixed  $value
+	 * @param string $empty  Return $empty if $value is null
+	 * @return string
+	 */
+	public static function quote($value, $empty = 'NULL')
+	{
+		if (is_array($value)) return '(' . join(', ', array_map(array(get_class(), 'quote'), $value)) . ')';
+
+		if (is_null($value)) return $empty;
+		if (is_bool($value)) return $value ? 'TRUE' : 'FALSE';
+		if (is_int($value) || is_float($value)) return (string)$value;
+		return '"' . strtr((string)$value, array('\\' => '\\\\', "\0" => '\\0', "\r" => '\\r', "\n" => '\\n', '"' => '\\"')) . '"';
 	}
 }
 
