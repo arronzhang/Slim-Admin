@@ -53,7 +53,7 @@ class Table extends Base
 		"longblob" => "textarea",
 		"enum" => "select",
 		"set" => "checkgroup",
-		"date" => "text",
+		"date" => "date",
 		"datetime" => "text",
 		"timestamp" => "text",
 		"time" => "text",
