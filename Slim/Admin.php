@@ -185,6 +185,7 @@ class Admin extends \Slim\Slim
 	public function renderTemplate( $method, $format = "html" ) {
 		$name = $this->table()->name;
 		$path = $this->config("templates.path");
+		$format = $format == "html" ? $format : $format . ".html";
 		$temp = $name . "-" . $method . ".".$format.".twig";
 
 		$file = $path . '/'. $temp;
