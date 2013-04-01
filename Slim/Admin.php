@@ -317,7 +317,7 @@ class Admin extends \Slim\Slim
 		$this->get("/" . $name . "/:id", function($id) use ($table, $app, $callable) {
 			$table->load();
 			$app->table( $table );
-			$data = $table->find( $id );
+			$data = $table->find( $id, $app->request()->get() );
 			if( !$data )
 				return $app->notFound();
 
@@ -345,11 +345,11 @@ class Admin extends \Slim\Slim
 		$this->put("/" . $name . "/:id", function($id) use ($table, $app, $callable) {
 			$table->load();
 			$app->table( $table );
-			$data = $table->find( $id );
+			$req = $app->request();
+			$data = $table->find( $id, $req->post() );
 			if( !$data )
 				return $app->notFound();
 
-			$req = $app->request();
 			$ref = $req->post("_referrer");
 			$app->view()->setData( "_referrer", $ref );
 

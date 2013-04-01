@@ -876,7 +876,7 @@ class Table extends Base
 		return $data;
 	}
 
-	public function find( $id )
+	public function find( $id, $params = array() )
 	{
 		$conn = $this->conn();
 		if( $conn ) {
@@ -887,6 +887,7 @@ class Table extends Base
 			$sql = "SELECT * FROM `" . $this->name . "`" . $this->conditions_sql;
 			$data = $conn->fetchOne($sql, MYSQLI_ASSOC, $this->conditions);
 			if( $data ) {
+				$data = array_merge( $data, $params );
 				$this->conditions($data);
 				$this->fetchForFilter();
 				return (object)$data;
