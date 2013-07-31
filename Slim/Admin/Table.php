@@ -761,7 +761,7 @@ class Table extends Base
 				$rval = $range ? ( is_array($val) ? $val : explode($range, $val) ) : null;
 				$ar[$name] = $val;
 				if( $range && count($rval) > 1 ) {
-					$where[] = "(`" . $name . "` BETWEEN ".static::quote($rval[0])." and ".static::quote($rval[1]).")";
+					$where[] = "(`" . $name . "` >= ".static::quote($rval[0])." and `" . $name . "` < ".static::quote($rval[1]).")";
 				} else {
 					$where[] = "(`" . $name . "` ".(is_array( $val ) ? "IN" : "=")." :" . $name . ")";
 				}
