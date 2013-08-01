@@ -562,7 +562,15 @@ class Admin extends \Slim\Slim
 			if( isset($_FILES[$name]) ){
 				$file = new \Upload\File( $name, $storage );
 				if( $file->isOk() ) {
-					//$file->setName(time() . rand( 1 , 10000 ));
+					$extra = $column->extra;
+					if( is_array( $extra ) && isset( $extra["name"] ) ) {
+						$cb = $extra["name"];
+						if( $cb == "rand" )
+							$file->setName(time() . rand( 1 , 10000 ));
+						else if( is_callable( $cb ) ) {
+							$file->setName( call_user_func($cb, $file->getName()) );
+						}
+					}
 					$file->addValidations(array(
 						new \Upload\Validation\Mimetype(
 							array( 'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/bmp' )
@@ -571,7 +579,6 @@ class Admin extends \Slim\Slim
 					$file->upload();
 					$fileName = $file->getNameWithExtension();
 					$data->$name = $fileName;
-					$extra = $column->extra;
 					if( is_array( $extra ) ) {
 						if( isset($extra["quality"]) ){
 							Admin::compressImage( $path, $fileName, $extra["quality"] );
@@ -595,6 +602,15 @@ class Admin extends \Slim\Slim
 			if( isset($_FILES[$name]) ){
 				$file = new \Upload\File( $name, $storage );
 				if( $file->isOk() ) {
+					$extra = $column->extra;
+					if( is_array( $extra ) && isset( $extra["name"] ) ) {
+						$cb = $extra["name"];
+						if( $cb == "rand" )
+							$file->setName(time() . rand( 1 , 10000 ));
+						else if( is_callable( $cb ) ) {
+							$file->setName( call_user_func($cb, $file->getName()) );
+						}
+					}
 					$file->upload();
 					$data->$name = $file->getNameWithExtension();
 				}
