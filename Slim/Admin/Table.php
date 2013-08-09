@@ -333,7 +333,7 @@ class Table extends Base
 					return $v->$key; 
 				}));
 				if( count( $ids ) ) {
-					$dd = $o["table"]->pair($o["key"], $ids, true);
+					$dd = $o["table"]->pair($o["key"], $ids, true, $o["remotekey"]);
 					$len = count($data);
 					for ($i = 0; $i < $len; $i++) {
 						$d = $data[$i];
@@ -380,11 +380,12 @@ class Table extends Base
 		);
 	}
 
-	public function belong( $table, $locKey, $remoteDisplay )
+	public function belong( $table, $locKey, $remoteDisplay, $remoteKey = null )
 	{
 		$this->belong_to[ $locKey ] = array(
 			"table" => $table, 
 			"key" => $remoteDisplay, 
+			"remotekey" => $remoteKey, 
 		);
 	}
 
@@ -480,10 +481,11 @@ class Table extends Base
 			$col = $this->column($key);
 			if(!$col->formatter) {
 				$ttt = $o["table"];
+				$k = $o["remotekey"];
 				$kkk = "_" . $key;
-				$col->formatter = function($table, $col, $row, $val) use( $ttt, $kkk ) {
-					$key = $table->key();
-					return array("link", empty($row->$kkk) ? $val : $row->$kkk, $ttt->urlFor((object)array($key => $val)));
+				$col->formatter = function($table, $col, $row, $val) use( $ttt, $kkk, $k ) {
+					$key = $k ? $k : $table->key();
+					return array("link", empty($row->$kkk) ? $val : $row->$kkk, $ttt->urlFor( $k ? array($key => $val) : (object)array($key => $val) ));
 				};
 			}
 		}
@@ -813,12 +815,12 @@ class Table extends Base
 		return $data;
 	}
 
-	public function pair( $display, $ids = null, $pair = false )
+	public function pair( $display, $ids = null, $pair = false, $k = null )
 	{
 		$conn = $this->conn();
 		$data = array();
 		if( $conn ) {
-			$key = $this->key();
+			$key = $k ? $k : $this->key();
 			if( $key ) {
 				if( $ids ) {
 					$this->conditions(array( $key => $ids ) );
